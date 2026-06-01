@@ -744,7 +744,7 @@ function buildGrid(){
     btn.className='act-btn'+(a.isCustom?' custom':'');
     btn.dataset.id=a.id;
     btn.innerHTML=`<span class="act-dot" style="background:${a.hex}"></span><span class="act-label">${a.label}</span>`
-      +(a.isCustom?`<button class="act-del" title="Delete" onclick="deleteCustomAct(event,'${a.customId}')">&#10005;</button>`:'');
+      +(a.isCustom?`<span class="act-del" title="Delete" onclick="deleteCustomAct(event,'${a.customId}')">&#10005;</span>`:'');
     btn.onclick=(e)=>{ if(e.target.classList.contains('act-del')) return; selectActivity(a.id); };
     grid.appendChild(btn);
   });
