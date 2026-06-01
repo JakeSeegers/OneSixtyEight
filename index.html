@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f0e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>168 Hours</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg:        #f5f0e8;
+      --surface:   #ffffff;
+      --ink:       #1a1a18;
+      --ink-light: #6b6b5f;
+      --accent:    #2d5a3d;
+      --accent-lt: #e8f0ea;
+      --warn:      #c8773a;
+      --border:    #e0d9cc;
+      --radius:    14px;
+      --shadow:    0 2px 16px rgba(0,0,0,0.07);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 20px 24px 16px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+    }
+    header h1 span { color: var(--accent); }
+    #notif-btn {
+      font-size: 0.75rem;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #notif-btn:hover { border-color: var(--accent); color: var(--accent); }
+    #notif-btn.active { background: var(--accent-lt); border-color: var(--accent); color: var(--accent); }
+
+    /* ── Tabs ── */
+    nav {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      padding: 0 24px;
+    }
+    nav button {
+      flex: 1;
+      padding: 12px 0;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--ink-light);
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+    }
+    nav button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Sections ── */
+    .section { display: none; flex: 1; overflow-y: auto; }
+    .section.visible { display: flex; flex-direction: column; }
+
+    /* ── LOG section ── */
+    #log-section { padding: 24px; gap: 20px; }
+
+    .log-prompt {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .log-prompt p {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-light);
+      margin-bottom: 6px;
+    }
+    .log-prompt h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+    }
+
+    .activity-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .act-btn {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .act-btn:hover { border-color: var(--accent); background: var(--accent-lt); }
+    .act-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent-lt);
+      box-shadow: 0 0 0 3px rgba(45,90,61,0.12);
+    }
+    .act-btn .icon { font-size: 1.3rem; line-height: 1; }
+    .act-btn .label { font-size: 0.85rem; font-weight: 500; color: var(--ink); }
+
+    .note-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .note-row label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--ink-light);
+    }
+    .note-row input {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .note-row input:focus { border-color: var(--accent); }
+
+    #submit-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 15px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    #submit-btn:hover { opacity: 0.88; }
+    #submit-btn:active { transform: scale(0.98); }
+    #submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: all 0.25s;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── HISTORY section ── */
+    #history-section { padding: 24px; gap: 12px; }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-header h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 1.1rem;
+    }
+    .history-header span {
+      font-size: 0.75rem;
+      color: var(--ink-light);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .log-entry {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .log-entry .entry-icon { font-size: 1.4rem; }
+    .log-entry .entry-body { flex: 1; }
+    .log-entry .entry-activity { font-weight: 500; font-size: 0.9rem; }
+    .log-entry .entry-note { font-size: 0.8rem; color: var(--ink-light); margin-top: 2px; }
+    .log-entry .entry-time {
+      font-size: 0.75rem;
+      color: var(--ink-light);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .empty-state {
+      text-align: center;
+      color: var(--ink-light);
+      padding: 48px 24px;
+    }
+    .empty-state .big { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; line-height: 1.6; }
+
+    /* ── STATS section ── */
+    #stats-section { padding: 24px; gap: 20px; }
+
+    .stats-header h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+    .stats-header p { font-size: 0.8rem; color: var(--ink-light); }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .chart-card canvas { max-height: 260px; }
+
+    .stat-bars { display: flex; flex-direction: column; gap: 10px; }
+    .stat-row { display: flex; flex-direction: column; gap: 5px; }
+    .stat-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .stat-row-header span:first-child { font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .stat-row-header span:last-child { font-size: 0.75rem; color: var(--ink-light); }
+    .bar-track {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .total-badge {
+      background: var(--accent-lt);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-badge span:first-child { font-size: 0.8rem; color: var(--accent); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+    .total-badge span:last-child { font-size: 1.1rem; font-weight: 500; color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>168 <span>Hours</span></h1>
+  <button id="notif-btn" onclick="toggleNotifications()">Enable Reminders</button>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('log')">Log</button>
+  <button onclick="showTab('history')">History</button>
+  <button onclick="showTab('stats')">Stats</button>
+</nav>
+
+<!-- LOG -->
+<div id="log-section" class="section visible">
+  <div class="log-prompt">
+    <p>Right now</p>
+    <h2>What are you doing?</h2>
+  </div>
+
+  <div class="activity-grid" id="activity-grid">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="note-row">
+    <label>Optional note</label>
+    <input type="text" id="note-input" placeholder="e.g. morning run, lecture, zoom call…" maxlength="120">
+  </div>
+
+  <button id="submit-btn" onclick="submitLog()" disabled>Log Activity</button>
+</div>
+
+<!-- HISTORY -->
+<div id="history-section" class="section">
+  <div class="history-header">
+    <h3>Recent logs</h3>
+    <span id="log-count">—</span>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- STATS -->
+<div id="stats-section" class="section">
+  <div class="stats-header">
+    <h3>Your time breakdown</h3>
+    <p>Based on all logged entries</p>
+  </div>
+  <div class="chart-card">
+    <canvas id="pie-chart"></canvas>
+  </div>
+  <div class="chart-card stat-bars" id="stat-bars"></div>
+  <div class="total-badge">
+    <span>Total entries</span>
+    <span id="total-count">—</span>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────
+const SUPABASE_URL = 'https://kcsjdgpatoiprgvthdlc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tvlXARIX31Wk5P-SRPuMzw__MTBYtcH';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── Activities ───────────────────────────────────────────
+const ACTIVITIES = [
+  { id: 'sleep',      label: 'Sleep',         icon: '🌙' },
+  { id: 'meals',      label: 'Meals',         icon: '🍽️' },
+  { id: 'learning',   label: 'Learning',      icon: '📚' },
+  { id: 'work',       label: 'Work',          icon: '💼' },
+  { id: 'commute',    label: 'Commute',       icon: '🚌' },
+  { id: 'social',     label: 'Social',        icon: '👥' },
+  { id: 'hobbies',    label: 'Hobbies',       icon: '🎨' },
+  { id: 'exercise',   label: 'Exercise',      icon: '🏃' },
+  { id: 'chores',     label: 'Chores',        icon: '🧹' },
+  { id: 'selfcare',   label: 'Self-care',     icon: '✨' },
+  { id: 'freetime',   label: 'Free time',     icon: '☁️' },
+  { id: 'other',      label: 'Other',         icon: '•••' },
+];
+
+const COLORS = [
+  '#2d5a3d','#4a7c5a','#6b9e7a','#8cbf9a',
+  '#c8773a','#d4935e','#e0af82','#3a6b7c',
+  '#5a8c9e','#7aaebf','#9ecfd0','#b8b8a8',
+];
+
+// ── State ────────────────────────────────────────────────
+let selectedActivity = null;
+let pieChart = null;
+
+// ── Build activity grid ──────────────────────────────────
+function buildGrid() {
+  const grid = document.getElementById('activity-grid');
+  grid.innerHTML = '';
+  ACTIVITIES.forEach(act => {
+    const btn = document.createElement('button');
+    btn.className = 'act-btn';
+    btn.dataset.id = act.id;
+    btn.innerHTML = `<span class="icon">${act.icon}</span><span class="label">${act.label}</span>`;
+    btn.onclick = () => selectActivity(act.id);
+    grid.appendChild(btn);
+  });
+}
+
+function selectActivity(id) {
+  selectedActivity = id;
+  document.querySelectorAll('.act-btn').forEach(b => b.classList.toggle('selected', b.dataset.id === id));
+  document.getElementById('submit-btn').disabled = false;
+}
+
+// ── Submit log ───────────────────────────────────────────
+async function submitLog() {
+  if (!selectedActivity) return;
+  const note = document.getElementById('note-input').value.trim();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const { error } = await db.from('time_logs').insert({
+    activity: selectedActivity,
+    note: note || null,
+    logged_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    showToast('⚠️ Could not save — check connection');
+  } else {
+    showToast('✓ Logged');
+    selectedActivity = null;
+    document.getElementById('note-input').value = '';
+    document.querySelectorAll('.act-btn').forEach(b => b.classList.remove('selected'));
+    if (document.getElementById('history-section').classList.contains('visible')) loadHistory();
+    if (document.getElementById('stats-section').classList.contains('visible')) loadStats();
+  }
+
+  btn.textContent = 'Log Activity';
+  btn.disabled = false;
+}
+
+// ── Toast ────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Tabs ─────────────────────────────────────────────────
+function showTab(tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+  document.querySelectorAll('nav button').forEach((b, i) => {
+    b.classList.toggle('active', ['log','history','stats'][i] === tab);
+  });
+  document.getElementById(`${tab}-section`).classList.add('visible');
+  if (tab === 'history') loadHistory();
+  if (tab === 'stats') loadStats();
+}
+
+// ── History ──────────────────────────────────────────────
+async function loadHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+
+  const { data, error } = await db
+    .from('time_logs')
+    .select('*')
+    .order('logged_at', { ascending: false })
+    .limit(60);
+
+  if (error || !data) { list.innerHTML = '<div class="empty-state"><p>Could not load history.</p></div>'; return; }
+
+  document.getElementById('log-count').textContent = `${data.length} entries`;
+
+  if (data.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="big">⏳</div><p>No logs yet.<br>Use the Log tab to record your first activity.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = data.map(entry => {
+    const act = ACTIVITIES.find(a => a.id === entry.activity) || { label: entry.activity, icon: '•' };
+    const dt = new Date(entry.logged_at);
+    const timeStr = dt.toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `
+      <div class="log-entry">
+        <span class="entry-icon">${act.icon}</span>
+        <div class="entry-body">
+          <div class="entry-activity">${act.label}</div>
+          ${entry.note ? `<div class="entry-note">${entry.note}</div>` : ''}
+        </div>
+        <div class="entry-time">${timeStr}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── Stats ─────────────────────────────────────────────────
+async function loadStats() {
+  const { data, error } = await db.from('time_logs').select('activity');
+  if (error || !data || data.length === 0) {
+    document.getElementById('stat-bars').innerHTML = '<div class="empty-state"><p>Log some activities first.</p></div>';
+    document.getElementById('total-count').textContent = '0';
+    return;
+  }
+
+  document.getElementById('total-count').textContent = data.length;
+
+  // Count
+  const counts = {};
+  data.forEach(r => { counts[r.activity] = (counts[r.activity] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const total = data.length;
+
+  // Pie chart
+  const labels = sorted.map(([id]) => ACTIVITIES.find(a => a.id === id)?.label || id);
+  const values = sorted.map(([,v]) => v);
+  const colors = sorted.map(([id]) => COLORS[ACTIVITIES.findIndex(a => a.id === id) % COLORS.length]);
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pie-chart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
+    options: {
+      cutout: '62%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'DM Sans', size: 12 }, padding: 14, boxWidth: 12 } }
+      }
+    }
+  });
+
+  // Bars
+  const bars = document.getElementById('stat-bars');
+  bars.innerHTML = sorted.map(([id, count]) => {
+    const act = ACTIVITIES.find(a => a.id === id) || { label: id, icon: '•' };
+    const pct = Math.round((count / total) * 100);
+    return `
+      <div class="stat-row">
+        <div class="stat-row-header">
+          <span>${act.icon} ${act.label}</span>
+          <span>${pct}% · ${count} entries</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  }).join('');
+}
+
+// ── Notifications ─────────────────────────────────────────
+// Uses stratified-random ESM scheduling:
+// Waking hours (8am–10pm) split into 7 two-hour blocks.
+// One random prompt fires per block per day.
+
+const BLOCKS = [[8,10],[10,12],[12,14],[14,16],[16,18],[18,20],[20,22]];
+const SCHEDULE_KEY = 'notif_schedule';
+
+function getOrBuildSchedule() {
+  const stored = localStorage.getItem(SCHEDULE_KEY);
+  const today = new Date().toDateString();
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    if (parsed.date === today) return parsed.times;
+  }
+  const times = BLOCKS.map(([s, e]) => {
+    const base = new Date(); base.setSeconds(0,0);
+    base.setHours(s, 0, 0, 0);
+    const end = new Date(base); end.setHours(e);
+    return base.getTime() + Math.random() * (end.getTime() - base.getTime());
+  });
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify({ date: today, times }));
+  return times;
+}
+
+function armNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  const times = getOrBuildSchedule();
+  times.filter(t => t > now).forEach(t => {
+    setTimeout(() => {
+      new Notification('⏱ 168 Hours', {
+        body: 'What are you doing right now?',
+        icon: 'icon.png',
+        tag: 'time-check',
+        requireInteraction: false,
+      });
+    }, t - now);
+  });
+}
+
+async function toggleNotifications() {
+  const btn = document.getElementById('notif-btn');
+  if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; }
+
+  if (Notification.permission === 'granted') {
+    showToast('Reminders already enabled ✓');
+    btn.classList.add('active');
+    btn.textContent = 'Reminders On';
+    armNotifications();
+    return;
+  }
+
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    btn.classList.add('active');
+    btn.textContent = 'Reminders On';
+    armNotifications();
+    showToast('Reminders scheduled for today ✓');
+  } else {
+    showToast('Permission denied — enable in browser settings');
+  }
+}
+
+// Auto-arm if already permitted
+window.addEventListener('load', () => {
+  buildGrid();
+  if (Notification.permission === 'granted') {
+    document.getElementById('notif-btn').classList.add('active');
+    document.getElementById('notif-btn').textContent = 'Reminders On';
+    armNotifications();
+  }
+
+  // Register service worker for PWA installability
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // If opened from a notification, scroll to log tab
+  if (document.referrer === '' && performance.navigation?.type === 0) {
+    showTab('log');
+  }
+});
+</script>
+</body>
+</html>

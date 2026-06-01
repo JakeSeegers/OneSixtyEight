@@ -1,0 +1,16 @@
+{
+  "name": "168 Hours",
+  "short_name": "168h",
+  "description": "Track how you spend your time with random check-ins",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#f5f0e8",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232d5a3d'/><text y='.9em' font-size='70' x='12'>⏱</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
