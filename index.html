@@ -11,318 +11,165 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SheetJS for client-side xlsx generation -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     :root {
-      --bg:        #f5f0e8;
-      --surface:   #ffffff;
-      --ink:       #1a1a18;
-      --ink-light: #6b6b5f;
-      --accent:    #2d5a3d;
-      --accent-lt: #e8f0ea;
-      --warn:      #c8773a;
-      --border:    #e0d9cc;
-      --radius:    14px;
-      --shadow:    0 2px 16px rgba(0,0,0,0.07);
+      --bg:#f5f0e8; --surface:#ffffff; --ink:#1a1a18; --ink-light:#6b6b5f;
+      --accent:#2d5a3d; --accent-lt:#e8f0ea; --warn:#c8773a;
+      --border:#e0d9cc; --radius:14px; --shadow:0 2px 16px rgba(0,0,0,0.07);
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
 
-    /* ── Header ── */
-    header {
-      padding: 20px 24px 16px;
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    header h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 400; letter-spacing: -0.02em; }
-    header h1 span { color: var(--accent); }
-    #notif-btn {
-      font-size: 0.75rem; font-family: 'DM Sans', sans-serif; font-weight: 500;
-      letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-light);
-      background: none; border: 1px solid var(--border); border-radius: 20px;
-      padding: 5px 12px; cursor: pointer; transition: all 0.15s;
-    }
-    #notif-btn:hover { border-color: var(--accent); color: var(--accent); }
-    #notif-btn.active { background: var(--accent-lt); border-color: var(--accent); color: var(--accent); }
+    /* header */
+    header{padding:20px 24px 16px;display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:10}
+    header h1{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:400;letter-spacing:-.02em}
+    header h1 span{color:var(--accent)}
+    #notif-btn{font-size:.75rem;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-light);background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;transition:all .15s}
+    #notif-btn:hover{border-color:var(--accent);color:var(--accent)}
+    #notif-btn.active{background:var(--accent-lt);border-color:var(--accent);color:var(--accent)}
 
-    /* ── Tabs ── */
-    nav {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
-      padding: 0 8px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    nav::-webkit-scrollbar { display: none; }
-    nav button {
-      flex: none;
-      padding: 12px 14px;
-      background: none; border: none;
-      border-bottom: 2px solid transparent;
-      font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 500;
-      color: var(--ink-light); cursor: pointer; transition: all 0.15s;
-      letter-spacing: 0.02em; white-space: nowrap;
-    }
-    nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+    /* nav */
+    nav{display:flex;border-bottom:1px solid var(--border);background:var(--bg);padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    nav::-webkit-scrollbar{display:none}
+    nav button{flex:none;padding:12px 14px;background:none;border:none;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;color:var(--ink-light);cursor:pointer;transition:all .15s;letter-spacing:.02em;white-space:nowrap}
+    nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
 
-    /* ── Sections ── */
-    .section { display: none; flex: 1; overflow-y: auto; }
-    .section.visible { display: flex; flex-direction: column; }
+    /* sections */
+    .section{display:none;flex:1;overflow-y:auto}
+    .section.visible{display:flex;flex-direction:column}
 
-    /* ── LOG ── */
-    #log-section { padding: 24px; gap: 20px; }
-    .log-prompt {
-      background: var(--surface); border-radius: var(--radius);
-      padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid var(--border);
-    }
-    .log-prompt p { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-light); margin-bottom: 6px; }
-    .log-prompt h2 { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 400; }
-    .activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .act-btn {
-      background: var(--surface); border: 1.5px solid var(--border);
-      border-radius: var(--radius); padding: 14px 12px;
-      cursor: pointer; text-align: left; transition: all 0.15s;
-      display: flex; align-items: center; gap: 10px;
-      font-family: 'DM Sans', sans-serif;
-    }
-    .act-btn:hover { border-color: var(--accent); background: var(--accent-lt); }
-    .act-btn.selected { border-color: var(--accent); background: var(--accent-lt); box-shadow: 0 0 0 3px rgba(45,90,61,0.12); }
-    .act-btn .icon { font-size: 1.3rem; line-height: 1; }
-    .act-btn .label { font-size: 0.85rem; font-weight: 500; color: var(--ink); }
-    .note-row { display: flex; flex-direction: column; gap: 8px; }
-    .note-row label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-light); }
-    .note-row input {
-      background: var(--surface); border: 1.5px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px;
-      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink);
-      outline: none; transition: border-color 0.15s;
-    }
-    .note-row input:focus { border-color: var(--accent); }
-    #submit-btn {
-      background: var(--accent); color: #fff; border: none;
-      border-radius: var(--radius); padding: 15px;
-      font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500;
-      cursor: pointer; letter-spacing: 0.02em; transition: opacity 0.15s, transform 0.1s;
-    }
-    #submit-btn:hover { opacity: 0.88; }
-    #submit-btn:active { transform: scale(0.98); }
-    #submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* log */
+    #log-section{padding:24px;gap:20px}
+    .log-prompt{background:var(--surface);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);border:1px solid var(--border)}
+    .log-prompt p{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-light);margin-bottom:6px}
+    .log-prompt h2{font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:400}
+    .activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .act-btn{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 12px;cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif}
+    .act-btn:hover{border-color:var(--accent);background:var(--accent-lt)}
+    .act-btn.selected{border-color:var(--accent);background:var(--accent-lt);box-shadow:0 0 0 3px rgba(45,90,61,.12)}
+    .act-btn .icon{font-size:1.3rem;line-height:1}
+    .act-btn .label{font-size:.85rem;font-weight:500;color:var(--ink)}
+    .note-row{display:flex;flex-direction:column;gap:8px}
+    .note-row label{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-light)}
+    .note-row input{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:.9rem;color:var(--ink);outline:none;transition:border-color .15s}
+    .note-row input:focus{border-color:var(--accent)}
+    #submit-btn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:15px;font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:500;cursor:pointer;letter-spacing:.02em;transition:opacity .15s,transform .1s}
+    #submit-btn:hover{opacity:.88}
+    #submit-btn:active{transform:scale(.98)}
+    #submit-btn:disabled{opacity:.4;cursor:not-allowed}
 
-    /* ── HISTORY ── */
-    #history-section { padding: 24px; gap: 12px; }
-    .history-header { display: flex; justify-content: space-between; align-items: center; }
-    .history-header h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.1rem; }
-    .history-header span { font-size: 0.75rem; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.06em; }
-    .log-entry {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 14px 16px;
-      display: flex; align-items: center; gap: 14px;
-      animation: slideIn 0.2s ease;
-    }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    .log-entry .entry-icon { font-size: 1.4rem; }
-    .log-entry .entry-body { flex: 1; }
-    .log-entry .entry-activity { font-weight: 500; font-size: 0.9rem; }
-    .log-entry .entry-note { font-size: 0.8rem; color: var(--ink-light); margin-top: 2px; }
-    .log-entry .entry-time { font-size: 0.75rem; color: var(--ink-light); text-align: right; white-space: nowrap; }
+    /* history */
+    #history-section{padding:24px;gap:12px}
+    .history-header{display:flex;justify-content:space-between;align-items:center}
+    .history-header h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.1rem}
+    .history-header span{font-size:.75rem;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em}
+    .log-entry{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:14px;animation:slideIn .2s ease}
+    @keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .log-entry .entry-icon{font-size:1.4rem}
+    .log-entry .entry-body{flex:1}
+    .log-entry .entry-activity{font-weight:500;font-size:.9rem}
+    .log-entry .entry-note{font-size:.8rem;color:var(--ink-light);margin-top:2px}
+    .log-entry .entry-time{font-size:.75rem;color:var(--ink-light);text-align:right;white-space:nowrap}
 
-    /* ── STATS ── */
-    #stats-section { padding: 24px; gap: 20px; }
-    .stats-header h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.1rem; margin-bottom: 4px; }
-    .stats-header p { font-size: 0.8rem; color: var(--ink-light); }
-    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
-    .chart-card canvas { max-height: 260px; }
-    .stat-bars { display: flex; flex-direction: column; gap: 10px; }
-    .stat-row { display: flex; flex-direction: column; gap: 5px; }
-    .stat-row-header { display: flex; justify-content: space-between; align-items: baseline; }
-    .stat-row-header span:first-child { font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 6px; }
-    .stat-row-header span:last-child { font-size: 0.75rem; color: var(--ink-light); }
-    .bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
-    .total-badge {
-      background: var(--accent-lt); border: 1px solid var(--accent);
-      border-radius: 10px; padding: 14px 18px;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .total-badge span:first-child { font-size: 0.8rem; color: var(--accent); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
-    .total-badge span:last-child { font-size: 1.1rem; font-weight: 500; color: var(--accent); }
+    /* stats */
+    #stats-section{padding:24px;gap:20px}
+    .stats-header h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.1rem;margin-bottom:4px}
+    .stats-header p{font-size:.8rem;color:var(--ink-light)}
+    .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+    .chart-card canvas{max-height:260px}
+    .stat-bars{display:flex;flex-direction:column;gap:10px}
+    .stat-row{display:flex;flex-direction:column;gap:5px}
+    .stat-row-header{display:flex;justify-content:space-between;align-items:baseline}
+    .stat-row-header span:first-child{font-size:.85rem;font-weight:500;display:flex;align-items:center;gap:6px}
+    .stat-row-header span:last-child{font-size:.75rem;color:var(--ink-light)}
+    .bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+    .total-badge{background:var(--accent-lt);border:1px solid var(--accent);border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+    .total-badge span:first-child{font-size:.8rem;color:var(--accent);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+    .total-badge span:last-child{font-size:1.1rem;font-weight:500;color:var(--accent)}
 
-    /* ── SUMMARY (168-hr worksheet replica) ── */
-    #summary-section { padding: 20px; gap: 16px; }
-    .summary-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-    .summary-header div h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.1rem; }
-    .summary-header div p { font-size: 0.78rem; color: var(--ink-light); margin-top: 2px; }
-    .dl-btn {
-      display: flex; align-items: center; gap: 7px;
-      background: var(--accent); color: #fff; border: none;
-      border-radius: 10px; padding: 10px 16px;
-      font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 500;
-      cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
-      letter-spacing: 0.02em;
-    }
-    .dl-btn:hover { opacity: 0.87; }
-    .dl-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    /* summary */
+    #summary-section{padding:20px;gap:16px}
+    .summary-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .summary-header div h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.1rem}
+    .summary-header div p{font-size:.78rem;color:var(--ink-light);margin-top:2px}
+    .dl-btn{display:flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity .15s;letter-spacing:.02em}
+    .dl-btn:hover{opacity:.87}
+    .dl-btn:disabled{opacity:.45;cursor:not-allowed}
+    .worksheet-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+    .worksheet-title{background:#2d5a3d;color:#fff;font-family:'Playfair Display',serif;font-weight:400;font-size:1rem;padding:14px 18px;text-align:center}
+    .worksheet-subtitle{background:#4a7c5a;color:#fff;font-size:.78rem;padding:6px 18px;text-align:center;letter-spacing:.04em;text-transform:uppercase}
+    .ws-table{width:100%;border-collapse:collapse;font-size:.82rem}
+    .ws-table thead th{background:#2d5a3d;color:#fff;padding:8px 12px;text-align:left;font-weight:500;font-size:.78rem;border-bottom:1px solid rgba(255,255,255,.15)}
+    .ws-table thead th:last-child{text-align:right}
+    .ws-table tbody tr:nth-child(even){background:#f5f0e8}
+    .ws-table tbody td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+    .ws-table tbody td:last-child{text-align:right}
+    .act-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+    .ws-table tfoot td{padding:10px 12px;font-weight:600;font-size:.83rem;background:var(--accent-lt);border-top:2px solid var(--accent);color:var(--accent)}
+    .ws-table tfoot td:last-child{text-align:right}
+    .ws-hours-bar{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--ink)}
+    .ws-hours-bar .hbar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+    .ws-hours-bar .hbar-fill{height:100%;border-radius:3px;transition:width .5s ease}
+    .ws-hours-num{min-width:36px;text-align:right;font-weight:500}
 
-    /* Part 2 table */
-    .worksheet-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
-    }
-    .worksheet-title {
-      background: #2d5a3d; color: #fff;
-      font-family: 'Playfair Display', serif; font-weight: 400;
-      font-size: 1rem; padding: 14px 18px;
-      text-align: center; letter-spacing: 0.01em;
-    }
-    .worksheet-subtitle {
-      background: #4a7c5a; color: #fff;
-      font-size: 0.78rem; padding: 6px 18px;
-      text-align: center; letter-spacing: 0.04em; text-transform: uppercase;
-    }
-    .ws-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    .ws-table thead th {
-      background: #2d5a3d; color: #fff; padding: 8px 12px;
-      text-align: left; font-weight: 500; font-size: 0.78rem;
-      border-bottom: 1px solid rgba(255,255,255,0.15);
-    }
-    .ws-table thead th:last-child { text-align: right; }
-    .ws-table tbody tr:nth-child(even) { background: #f5f0e8; }
-    .ws-table tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    .ws-table tbody td:last-child { text-align: right; }
-    .act-swatch {
-      display: inline-block; width: 10px; height: 10px;
-      border-radius: 2px; margin-right: 6px; vertical-align: middle;
-    }
-    .ws-table tfoot td {
-      padding: 10px 12px; font-weight: 600; font-size: 0.83rem;
-      background: var(--accent-lt); border-top: 2px solid var(--accent);
-      color: var(--accent);
-    }
-    .ws-table tfoot td:last-child { text-align: right; }
-    .ws-hours-bar {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 0.8rem; color: var(--ink);
-    }
-    .ws-hours-bar .hbar {
-      flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden;
-    }
-    .ws-hours-bar .hbar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
-    .ws-hours-num { min-width: 36px; text-align: right; font-weight: 500; }
+    /* calendar */
+    #calendar-section{padding:16px;gap:14px;overflow-y:auto}
+    .cal-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px}
+    .cal-header h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.1rem}
+    .cal-header p{font-size:.78rem;color:var(--ink-light);margin-top:2px}
 
-    /* ── CALENDAR (168-hr visual) ── */
-    #calendar-section { padding: 16px; gap: 14px; overflow-y: auto; }
-    .cal-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
-    .cal-header h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.1rem; }
-    .cal-header p { font-size: 0.78rem; color: var(--ink-light); margin-top: 2px; }
-    .cal-legend {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px 14px;
-      display: flex; flex-wrap: wrap; gap: 8px 14px;
-    }
-    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--ink); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    /* week mode switcher */
+    .week-mode-bar{display:flex;gap:0;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;align-self:flex-start}
+    .wm-btn{padding:7px 13px;font-size:.75rem;font-weight:500;font-family:'DM Sans',sans-serif;background:none;border:none;cursor:pointer;color:var(--ink-light);transition:all .15s;letter-spacing:.02em}
+    .wm-btn.active{background:var(--accent);color:#fff}
+    .wm-btn:not(:last-child){border-right:1.5px solid var(--border)}
 
-    /* The big schedule grid */
-    .cal-grid-wrap {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
-    }
-    .cal-grid {
-      display: grid;
-      /* col 0 = time label, cols 1-7 = days */
-      grid-template-columns: 56px repeat(7, 1fr);
-      width: 100%;
-    }
-    .cal-day-header {
-      background: #2d5a3d; color: #fff;
-      font-size: 0.72rem; font-weight: 500;
-      text-align: center; padding: 8px 2px;
-      letter-spacing: 0.03em;
-      border-right: 1px solid rgba(255,255,255,0.15);
-    }
-    .cal-day-header:first-child { background: #1e3d2a; }
-    .cal-time-label {
-      font-size: 0.67rem; color: var(--ink-light);
-      padding: 0 4px; text-align: right;
-      display: flex; align-items: center; justify-content: flex-end;
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: #faf8f4;
-      min-height: 30px;
-    }
-    .cal-cell {
-      min-height: 30px;
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      position: relative;
-      overflow: hidden;
-      transition: opacity 0.2s;
-    }
-    .cal-cell:hover { opacity: 0.85; cursor: default; }
-    .cal-cell.empty { background: #fafaf7; }
-    .cal-cell.filled { }
-    /* activity segments stacked vertically inside a cell */
-    .cal-cell-inner {
-      display: flex; flex-direction: column;
-      width: 100%; height: 100%; position: absolute; top: 0; left: 0;
-    }
-    .cal-seg {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      font-size: 0.6rem; color: rgba(255,255,255,0.85);
-      overflow: hidden; white-space: nowrap;
-      padding: 0 2px;
-    }
-    .cal-cell-tooltip {
-      position: absolute; bottom: 2px; right: 2px;
-      font-size: 0.55rem; color: rgba(255,255,255,0.7);
-      pointer-events: none;
-    }
-    .progress-bar-wrap {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 14px 16px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    .progress-bar-wrap .prog-label {
-      display: flex; justify-content: space-between;
-      font-size: 0.78rem; color: var(--ink-light);
-    }
-    .prog-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-    .prog-fill {
-      height: 100%; background: linear-gradient(90deg, #2d5a3d, #4a7c5a);
-      border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
-    }
+    /* week navigator */
+    .week-nav{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+    .week-nav-arrows{display:flex;gap:4px}
+    .nav-arrow{background:none;border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:.9rem;color:var(--ink-light);transition:all .15s}
+    .nav-arrow:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+    .nav-arrow:disabled{opacity:.3;cursor:not-allowed}
+    .week-label{font-size:.82rem;font-weight:500;color:var(--ink);text-align:center;flex:1}
+    .week-label .week-badge{display:inline-block;background:var(--accent-lt);color:var(--accent);border-radius:20px;font-size:.7rem;padding:2px 8px;margin-left:6px;font-weight:600}
 
-    /* ── Toast ── */
-    #toast {
-      position: fixed; bottom: 28px; left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: var(--ink); color: #fff;
-      padding: 10px 20px; border-radius: 30px;
-      font-size: 0.85rem; opacity: 0; transition: all 0.25s;
-      pointer-events: none; z-index: 100; white-space: nowrap;
-    }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    /* progress bar */
+    .progress-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+    .progress-bar-wrap .prog-label{display:flex;justify-content:space-between;font-size:.78rem;color:var(--ink-light)}
+    .prog-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+    .prog-fill{height:100%;background:linear-gradient(90deg,#2d5a3d,#4a7c5a);border-radius:4px;transition:width .8s cubic-bezier(.4,0,.2,1)}
 
-    /* ── Empty state ── */
-    .empty-state { text-align: center; color: var(--ink-light); padding: 48px 24px; }
-    .empty-state .big { font-size: 2.5rem; margin-bottom: 12px; }
-    .empty-state p { font-size: 0.9rem; line-height: 1.6; }
+    /* legend */
+    .cal-legend{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px 14px}
+    .legend-item{display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--ink)}
+    .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+    /* grid */
+    .cal-grid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+    .cal-grid{display:grid;grid-template-columns:52px repeat(7,1fr);width:100%}
+    .cal-day-header{background:#2d5a3d;color:#fff;font-size:.7rem;font-weight:500;text-align:center;padding:8px 2px;letter-spacing:.03em;border-right:1px solid rgba(255,255,255,.15)}
+    .cal-day-header:first-child{background:#1e3d2a}
+    .cal-time-label{font-size:.63rem;color:var(--ink-light);padding:0 4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:#faf8f4;min-height:28px}
+    .cal-cell{min-height:28px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+    .cal-cell.empty{background:#fafaf7}
+    .cal-cell-inner{display:flex;flex-direction:column;width:100%;height:100%;position:absolute;top:0;left:0;min-height:28px}
+    /* for avg mode: horizontal stacked bands */
+    .cal-cell-inner.h-stack{flex-direction:row}
+    .cal-seg{flex:1;display:flex;align-items:center;justify-content:center;font-size:.56rem;color:rgba(255,255,255,.85);overflow:hidden;white-space:nowrap;padding:0 1px;min-height:28px}
+
+    /* avg mode dim for unlogged cells */
+    .cal-cell.avg-empty{background:repeating-linear-gradient(45deg,#f5f0e8,#f5f0e8 3px,#ede8de 3px,#ede8de 6px)}
+
+    /* toast */
+    #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:30px;font-size:.85rem;opacity:0;transition:all .25s;pointer-events:none;z-index:100;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    .empty-state{text-align:center;color:var(--ink-light);padding:48px 24px}
+    .empty-state .big{font-size:2.5rem;margin-bottom:12px}
+    .empty-state p{font-size:.9rem;line-height:1.6}
   </style>
 </head>
 <body>
@@ -340,12 +187,9 @@
   <button onclick="showTab('calendar')">Calendar</button>
 </nav>
 
-<!-- ══ LOG ══ -->
+<!-- LOG -->
 <div id="log-section" class="section visible">
-  <div class="log-prompt">
-    <p>Right now</p>
-    <h2>What are you doing?</h2>
-  </div>
+  <div class="log-prompt"><p>Right now</p><h2>What are you doing?</h2></div>
   <div class="activity-grid" id="activity-grid"></div>
   <div class="note-row">
     <label>Optional note</label>
@@ -354,7 +198,7 @@
   <button id="submit-btn" onclick="submitLog()" disabled>Log Activity</button>
 </div>
 
-<!-- ══ HISTORY ══ -->
+<!-- HISTORY -->
 <div id="history-section" class="section">
   <div class="history-header">
     <h3>Recent logs</h3>
@@ -363,21 +207,15 @@
   <div id="history-list"></div>
 </div>
 
-<!-- ══ STATS ══ -->
+<!-- STATS -->
 <div id="stats-section" class="section">
-  <div class="stats-header">
-    <h3>Your time breakdown</h3>
-    <p>Based on all logged entries</p>
-  </div>
+  <div class="stats-header"><h3>Your time breakdown</h3><p>Based on all logged entries</p></div>
   <div class="chart-card"><canvas id="pie-chart"></canvas></div>
   <div class="chart-card stat-bars" id="stat-bars"></div>
-  <div class="total-badge">
-    <span>Total entries</span>
-    <span id="total-count">—</span>
-  </div>
+  <div class="total-badge"><span>Total entries</span><span id="total-count">—</span></div>
 </div>
 
-<!-- ══ SUMMARY (168-hr worksheet) ══ -->
+<!-- SUMMARY -->
 <div id="summary-section" class="section">
   <div class="summary-header">
     <div>
@@ -385,16 +223,14 @@
       <p>Estimated hours from your logged entries</p>
     </div>
     <button class="dl-btn" id="dl-btn" onclick="downloadExcel()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Download .xlsx
     </button>
   </div>
   <div class="worksheet-card">
     <div class="worksheet-title">How Are You Spending Your Time?</div>
     <div class="worksheet-subtitle">Part 2 — Activity Summary</div>
-    <table class="ws-table" id="ws-table">
+    <table class="ws-table">
       <thead><tr><th>Activity</th><th style="text-align:right">Hours</th></tr></thead>
       <tbody id="ws-tbody"></tbody>
       <tfoot id="ws-tfoot"></tfoot>
@@ -402,361 +238,485 @@
   </div>
 </div>
 
-<!-- ══ CALENDAR (168-hr visual grid) ══ -->
+<!-- CALENDAR -->
 <div id="calendar-section" class="section">
   <div class="cal-header">
-    <div>
-      <h3>Your 168-Hour Week</h3>
-      <p>Each cell = one hour. Colors fill in as you log.</p>
+    <div><h3>Your 168-Hour Week</h3><p id="cal-subtext">Each cell = one hour slot.</p></div>
+    <div class="week-mode-bar">
+      <button class="wm-btn active" id="wm-this" onclick="setCalMode('this')">This Week</button>
+      <button class="wm-btn" id="wm-past" onclick="setCalMode('past')">Past</button>
+      <button class="wm-btn" id="wm-avg"  onclick="setCalMode('avg')">Average</button>
     </div>
   </div>
-  <div class="progress-bar-wrap">
-    <div class="prog-label">
-      <span>Week filled in</span>
-      <span id="prog-pct">0%</span>
+
+  <!-- week navigator (hidden in avg mode) -->
+  <div class="week-nav" id="week-nav">
+    <div class="week-nav-arrows">
+      <button class="nav-arrow" id="nav-prev" onclick="navWeek(-1)">←</button>
+      <button class="nav-arrow" id="nav-next" onclick="navWeek(+1)">→</button>
     </div>
+    <div class="week-label" id="week-label">—</div>
+  </div>
+
+  <div class="progress-bar-wrap" id="prog-wrap">
+    <div class="prog-label"><span id="prog-left">Week filled in</span><span id="prog-pct">0%</span></div>
     <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
   </div>
+
   <div class="cal-legend" id="cal-legend"></div>
-  <div class="cal-grid-wrap">
-    <div class="cal-grid" id="cal-grid"></div>
-  </div>
+  <div class="cal-grid-wrap"><div class="cal-grid" id="cal-grid"></div></div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-// ── Config ───────────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://kcsjdgpatoiprgvthdlc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tvlXARIX31Wk5P-SRPuMzw__MTBYtcH';
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── Activities ───────────────────────────────────────────────────────────
+// ── Activities ────────────────────────────────────────────────────────────
 const ACTIVITIES = [
-  { id:'sleep',    label:'Sleep',         icon:'🌙', hex:'#4A7C8E', shortLabel:'Sleep'   },
-  { id:'meals',    label:'Meals',         icon:'🍽️', hex:'#C8773A', shortLabel:'Meals'   },
-  { id:'learning', label:'Learning',      icon:'📚', hex:'#2D5A3D', shortLabel:'Learn'   },
-  { id:'work',     label:'Work',          icon:'💼', hex:'#5A3D7C', shortLabel:'Work'    },
-  { id:'commute',  label:'Commute',       icon:'🚌', hex:'#7C6A3D', shortLabel:'Commute' },
-  { id:'social',   label:'Social',        icon:'👥', hex:'#3D7C6A', shortLabel:'Social'  },
-  { id:'hobbies',  label:'Hobbies',       icon:'🎨', hex:'#9B3D7C', shortLabel:'Hobby'   },
-  { id:'exercise', label:'Exercise',      icon:'🏃', hex:'#3D5A7C', shortLabel:'Exercise'},
-  { id:'chores',   label:'Chores',        icon:'🧹', hex:'#8E7A4A', shortLabel:'Chores'  },
-  { id:'selfcare', label:'Self-care',     icon:'✨', hex:'#7C5A3D', shortLabel:'Self-care'},
-  { id:'freetime', label:'Free time',     icon:'☁️', hex:'#4A8E7A', shortLabel:'Free'    },
-  { id:'other',    label:'Other',         icon:'•••', hex:'#8E8E8E', shortLabel:'Other'  },
+  {id:'sleep',    label:'Sleep',      icon:'🌙', hex:'#4A7C8E', short:'Sleep'},
+  {id:'meals',    label:'Meals',      icon:'🍽️', hex:'#C8773A', short:'Meals'},
+  {id:'learning', label:'Learning',   icon:'📚', hex:'#2D5A3D', short:'Learn'},
+  {id:'work',     label:'Work',       icon:'💼', hex:'#5A3D7C', short:'Work'},
+  {id:'commute',  label:'Commute',    icon:'🚌', hex:'#7C6A3D', short:'Commute'},
+  {id:'social',   label:'Social',     icon:'👥', hex:'#3D7C6A', short:'Social'},
+  {id:'hobbies',  label:'Hobbies',    icon:'🎨', hex:'#9B3D7C', short:'Hobby'},
+  {id:'exercise', label:'Exercise',   icon:'🏃', hex:'#3D5A7C', short:'Exercise'},
+  {id:'chores',   label:'Chores',     icon:'🧹', hex:'#8E7A4A', short:'Chores'},
+  {id:'selfcare', label:'Self-care',  icon:'✨', hex:'#7C5A3D', short:'Self-care'},
+  {id:'freetime', label:'Free time',  icon:'☁️', hex:'#4A8E7A', short:'Free'},
+  {id:'other',    label:'Other',      icon:'•••',hex:'#8E8E8E', short:'Other'},
 ];
-const ACT_MAP = Object.fromEntries(ACTIVITIES.map(a => [a.id, a]));
-
-// Part 2 worksheet label mapping
+const ACT = Object.fromEntries(ACTIVITIES.map(a=>[a.id,a]));
 const WS_LABELS = {
-  sleep:    'Sleep',
-  meals:    'Meals',
-  learning: 'Classes / Homework / Learning',
-  work:     'Work',
-  commute:  'Commuting',
-  social:   'Family / Friend Time',
-  hobbies:  'Activities (hobbies, exercise, spiritual practice, etc.)',
-  exercise: 'Exercise',
-  chores:   'Extra Responsibilities (chores, obligations, etc.)',
-  selfcare: 'Personal Care',
-  freetime: 'Free Time',
-  other:    'Other',
+  sleep:'Sleep', meals:'Meals', learning:'Classes / Homework / Learning',
+  work:'Work', commute:'Commuting', social:'Family / Friend Time',
+  hobbies:'Activities (hobbies, exercise, spiritual practice, etc.)',
+  exercise:'Exercise', chores:'Extra Responsibilities (chores, obligations, etc.)',
+  selfcare:'Personal Care', freetime:'Free Time', other:'Other',
 };
 
-// 24h display labels for the calendar
-const HOURS_DISPLAY = [
-  '6 AM','7 AM','8 AM','9 AM','10 AM','11 AM',
-  '12 PM','1 PM','2 PM','3 PM','4 PM','5 PM',
-  '6 PM','7 PM','8 PM','9 PM','10 PM','11 PM',
-  '12 AM','1 AM','2 AM','3 AM','4 AM','5 AM',
-];
-// Map display index → 24h integer
-const HOUR_24 = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3,4,5];
-const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// Display hour order (starting 6 AM) and their 24h values
+const HOUR_LABELS = ['6 AM','7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM','6 PM','7 PM','8 PM','9 PM','10 PM','11 PM','12 AM','1 AM','2 AM','3 AM','4 AM','5 AM'];
+const HOUR_24     = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3,4,5];
+const DAYS_SHORT  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-const COLORS_PIE = ACTIVITIES.map(a => a.hex);
-
+// ── State ────────────────────────────────────────────────────────────────
 let selectedActivity = null;
 let pieChart = null;
-let allLogs = [];   // cached for excel / calendar
+let logCache = null;          // all logs, sorted asc
+let calMode = 'this';         // 'this' | 'past' | 'avg'
+let calWeekOffset = 0;        // 0=current, -1=last, -2=two weeks ago…
+let allWeekStarts = [];       // sorted asc list of distinct week_start strings
 
-// ── Build activity grid ──────────────────────────────────────────────────
+// ── Week helpers ─────────────────────────────────────────────────────────
+function sundayOf(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0,0,0,0);
+  return d;
+}
+function weekStartStr(date) {
+  // Returns "YYYY-MM-DD" for the Sunday of that week
+  const d = sundayOf(date);
+  return d.toISOString().slice(0,10);
+}
+function fmtWeekRange(weekStartIso) {
+  const sun = new Date(weekStartIso + 'T12:00:00');
+  const sat = new Date(sun); sat.setDate(sun.getDate()+6);
+  const opts = {month:'short', day:'numeric'};
+  return `${sun.toLocaleDateString([],opts)} – ${sat.toLocaleDateString([],opts)}`;
+}
+function currentWeekStart() { return weekStartStr(new Date()); }
+
+// ── Grid / build activity buttons ────────────────────────────────────────
 function buildGrid() {
-  const grid = document.getElementById('activity-grid');
-  ACTIVITIES.forEach(act => {
-    const btn = document.createElement('button');
-    btn.className = 'act-btn'; btn.dataset.id = act.id;
-    btn.innerHTML = `<span class="icon">${act.icon}</span><span class="label">${act.label}</span>`;
-    btn.onclick = () => selectActivity(act.id);
-    grid.appendChild(btn);
+  const g = document.getElementById('activity-grid');
+  ACTIVITIES.forEach(a => {
+    const b = document.createElement('button');
+    b.className='act-btn'; b.dataset.id=a.id;
+    b.innerHTML=`<span class="icon">${a.icon}</span><span class="label">${a.label}</span>`;
+    b.onclick=()=>selectActivity(a.id);
+    g.appendChild(b);
   });
 }
 function selectActivity(id) {
-  selectedActivity = id;
-  document.querySelectorAll('.act-btn').forEach(b => b.classList.toggle('selected', b.dataset.id === id));
-  document.getElementById('submit-btn').disabled = false;
+  selectedActivity=id;
+  document.querySelectorAll('.act-btn').forEach(b=>b.classList.toggle('selected',b.dataset.id===id));
+  document.getElementById('submit-btn').disabled=false;
 }
 
-// ── Submit ───────────────────────────────────────────────────────────────
+// ── Submit ────────────────────────────────────────────────────────────────
 async function submitLog() {
   if (!selectedActivity) return;
   const note = document.getElementById('note-input').value.trim();
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = 'Saving…';
+  const btn  = document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+
+  // week_start is computed server-side by the DEFAULT, but we send it
+  // explicitly so the cache is consistent
+  const now = new Date();
   const { error } = await db.from('time_logs').insert({
-    activity: selectedActivity, note: note || null,
-    logged_at: new Date().toISOString(),
+    activity: selectedActivity,
+    note: note||null,
+    logged_at: now.toISOString(),
+    week_start: weekStartStr(now),
   });
-  if (error) {
-    showToast('⚠️ Could not save — check connection');
-  } else {
+
+  if (error) { showToast('⚠️ Could not save'); }
+  else {
     showToast('✓ Logged');
-    selectedActivity = null;
-    document.getElementById('note-input').value = '';
-    document.querySelectorAll('.act-btn').forEach(b => b.classList.remove('selected'));
-    allLogs = null; // bust cache
+    selectedActivity=null;
+    document.getElementById('note-input').value='';
+    document.querySelectorAll('.act-btn').forEach(b=>b.classList.remove('selected'));
+    logCache=null; // bust cache
   }
-  btn.textContent = 'Log Activity'; btn.disabled = false;
+  btn.textContent='Log Activity'; btn.disabled=false;
 }
 
-// ── Tabs ─────────────────────────────────────────────────────────────────
+// ── Tabs ──────────────────────────────────────────────────────────────────
 function showTab(tab) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
-  document.querySelectorAll('nav button').forEach((b, i) => {
-    b.classList.toggle('active', ['log','history','stats','summary','calendar'][i] === tab);
-  });
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('visible'));
+  document.querySelectorAll('nav button').forEach((b,i)=>
+    b.classList.toggle('active',['log','history','stats','summary','calendar'][i]===tab));
   document.getElementById(`${tab}-section`).classList.add('visible');
-  if (tab === 'history') loadHistory();
-  if (tab === 'stats')   loadStats();
-  if (tab === 'summary') loadSummary();
-  if (tab === 'calendar') loadCalendar();
+  if(tab==='history') loadHistory();
+  if(tab==='stats')   loadStats();
+  if(tab==='summary') loadSummary();
+  if(tab==='calendar') loadCalendar();
 }
 
-// ── Shared data fetch (cached) ────────────────────────────────────────────
-async function fetchAllLogs() {
-  if (allLogs) return allLogs;
-  const { data } = await db.from('time_logs').select('*').order('logged_at', { ascending: true });
-  allLogs = data || [];
-  return allLogs;
+// ── Cached fetch ──────────────────────────────────────────────────────────
+async function getLogs() {
+  if (logCache) return logCache;
+  const {data} = await db.from('time_logs').select('*').order('logged_at',{ascending:true});
+  logCache = data||[];
+  // collect distinct week starts
+  const ws = [...new Set(logCache.map(l=>l.week_start))].sort();
+  allWeekStarts = ws;
+  return logCache;
 }
 
-// ── History ──────────────────────────────────────────────────────────────
+// ── History ───────────────────────────────────────────────────────────────
 async function loadHistory() {
-  const list = document.getElementById('history-list');
-  list.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
-  const { data, error } = await db.from('time_logs').select('*').order('logged_at', { ascending: false }).limit(60);
-  if (error || !data) { list.innerHTML = '<div class="empty-state"><p>Could not load history.</p></div>'; return; }
-  document.getElementById('log-count').textContent = `${data.length} entries`;
-  if (!data.length) {
-    list.innerHTML = `<div class="empty-state"><div class="big">⏳</div><p>No logs yet.</p></div>`;
-    return;
-  }
-  list.innerHTML = data.map(e => {
-    const act = ACT_MAP[e.activity] || { label: e.activity, icon: '•' };
-    const dt = new Date(e.logged_at);
-    const ts = dt.toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  const list=document.getElementById('history-list');
+  list.innerHTML='<div class="empty-state"><p>Loading…</p></div>';
+  const {data,error}=await db.from('time_logs').select('*').order('logged_at',{ascending:false}).limit(60);
+  if(error||!data){list.innerHTML='<div class="empty-state"><p>Error loading.</p></div>';return;}
+  document.getElementById('log-count').textContent=`${data.length} entries`;
+  if(!data.length){list.innerHTML='<div class="empty-state"><div class="big">⏳</div><p>No logs yet.</p></div>';return;}
+  list.innerHTML=data.map(e=>{
+    const a=ACT[e.activity]||{label:e.activity,icon:'•'};
+    const ts=new Date(e.logged_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
     return `<div class="log-entry">
-      <span class="entry-icon">${act.icon}</span>
+      <span class="entry-icon">${a.icon}</span>
       <div class="entry-body">
-        <div class="entry-activity">${act.label}</div>
-        ${e.note ? `<div class="entry-note">${e.note}</div>` : ''}
+        <div class="entry-activity">${a.label}</div>
+        ${e.note?`<div class="entry-note">${e.note}</div>`:''}
       </div>
       <div class="entry-time">${ts}</div>
     </div>`;
   }).join('');
 }
 
-// ── Stats ────────────────────────────────────────────────────────────────
+// ── Stats ─────────────────────────────────────────────────────────────────
 async function loadStats() {
-  const logs = await fetchAllLogs();
-  if (!logs.length) {
-    document.getElementById('stat-bars').innerHTML = '<div class="empty-state"><p>Log some activities first.</p></div>';
-    document.getElementById('total-count').textContent = '0';
-    return;
+  const logs=await getLogs();
+  if(!logs.length){
+    document.getElementById('stat-bars').innerHTML='<div class="empty-state"><p>Log some activities first.</p></div>';
+    document.getElementById('total-count').textContent='0'; return;
   }
-  document.getElementById('total-count').textContent = logs.length;
-  const counts = {};
-  logs.forEach(r => { counts[r.activity] = (counts[r.activity] || 0) + 1; });
-  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
-  const total = logs.length;
-  const labels = sorted.map(([id]) => ACT_MAP[id]?.label || id);
-  const values = sorted.map(([,v]) => v);
-  const colors = sorted.map(([id]) => ACT_MAP[id]?.hex || '#888');
-  if (pieChart) pieChart.destroy();
-  pieChart = new Chart(document.getElementById('pie-chart'), {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
-    options: {
-      cutout: '62%',
-      plugins: { legend: { position: 'bottom', labels: { font: { family: 'DM Sans', size: 12 }, padding: 14, boxWidth: 12 }}}
-    }
+  document.getElementById('total-count').textContent=logs.length;
+  const counts={};
+  logs.forEach(r=>{counts[r.activity]=(counts[r.activity]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const total=logs.length;
+  if(pieChart) pieChart.destroy();
+  pieChart=new Chart(document.getElementById('pie-chart'),{
+    type:'doughnut',
+    data:{labels:sorted.map(([id])=>ACT[id]?.label||id),
+          datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map(([id])=>ACT[id]?.hex||'#888'),borderWidth:0,hoverOffset:6}]},
+    options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:12},padding:14,boxWidth:12}}}}
   });
-  document.getElementById('stat-bars').innerHTML = sorted.map(([id, count]) => {
-    const act = ACT_MAP[id] || { label: id, icon: '•', hex: '#888' };
-    const pct = Math.round((count / total) * 100);
+  document.getElementById('stat-bars').innerHTML=sorted.map(([id,count])=>{
+    const a=ACT[id]||{label:id,icon:'•',hex:'#888'};
+    const pct=Math.round((count/total)*100);
     return `<div class="stat-row">
-      <div class="stat-row-header">
-        <span>${act.icon} ${act.label}</span>
-        <span>${pct}% · ${count} entries</span>
-      </div>
-      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${act.hex}"></div></div>
+      <div class="stat-row-header"><span>${a.icon} ${a.label}</span><span>${pct}% · ${count}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${a.hex}"></div></div>
     </div>`;
   }).join('');
 }
 
-// ── Summary (worksheet replica) ───────────────────────────────────────────
-async function loadSummary() {
-  const logs = await fetchAllLogs();
-  const hours = estimateHours(logs);
-  const tbody = document.getElementById('ws-tbody');
-  const tfoot = document.getElementById('ws-tfoot');
-
-  if (!logs.length) {
-    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--ink-light);padding:32px">No logs yet — start logging to fill this in.</td></tr>`;
-    tfoot.innerHTML = '';
-    return;
-  }
-
-  let totalHours = 0;
-  tbody.innerHTML = ACTIVITIES.map(act => {
-    const h = hours[act.id] || 0;
-    totalHours += h;
-    const pct = Math.min(h / 168, 1);
-    return `<tr>
-      <td>
-        <span class="act-swatch" style="background:${act.hex}"></span>${WS_LABELS[act.id] || act.label}
-      </td>
-      <td>
-        <div class="ws-hours-bar">
-          <div class="hbar"><div class="hbar-fill" style="width:${pct*100}%;background:${act.hex}"></div></div>
-          <span class="ws-hours-num">${h > 0 ? h.toFixed(1) : '—'}</span>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-
-  const remaining = Math.max(0, 168 - totalHours).toFixed(1);
-  tfoot.innerHTML = `
-    <tr><td>Total =</td><td>${totalHours.toFixed(1)} hrs</td></tr>
-    <tr><td>Hours Remaining =</td><td>${remaining} hrs</td></tr>
-    <tr><td colspan="2" style="font-size:0.72rem;color:var(--ink-light);font-weight:400;background:white">
-      Each entry ≈ 1 hour in that time slot · ${logs.length} entries total
-    </td></tr>`;
-}
-
-// ── Estimate hours from log entries ──────────────────────────────────────
+// ── Summary ───────────────────────────────────────────────────────────────
 function estimateHours(logs) {
-  // Group by (day, hour) slot. Each slot = 1 hour, split among activities logged in it.
-  const slots = {};
-  logs.forEach(log => {
-    const dt = new Date(log.logged_at);
-    const key = `${dt.toDateString()}_${dt.getHours()}`;
-    if (!slots[key]) slots[key] = [];
-    slots[key].push(log.activity);
+  const slots={};
+  logs.forEach(l=>{
+    const dt=new Date(l.logged_at);
+    const key=`${dt.toDateString()}_${dt.getHours()}`;
+    if(!slots[key]) slots[key]=[];
+    slots[key].push(l.activity);
   });
-  const hours = {};
-  Object.values(slots).forEach(acts => {
-    const per = 1 / acts.length;
-    acts.forEach(a => { hours[a] = (hours[a] || 0) + per; });
+  const hours={};
+  Object.values(slots).forEach(acts=>{
+    const per=1/acts.length;
+    acts.forEach(a=>{hours[a]=(hours[a]||0)+per;});
   });
   return hours;
 }
+async function loadSummary() {
+  const logs=await getLogs();
+  const hours=estimateHours(logs);
+  const tbody=document.getElementById('ws-tbody');
+  const tfoot=document.getElementById('ws-tfoot');
+  if(!logs.length){
+    tbody.innerHTML='<tr><td colspan="2" style="text-align:center;color:var(--ink-light);padding:32px">No logs yet.</td></tr>';
+    tfoot.innerHTML=''; return;
+  }
+  let totalH=0;
+  tbody.innerHTML=ACTIVITIES.map(a=>{
+    const h=hours[a.id]||0; totalH+=h;
+    const pct=Math.min(h/168,1);
+    return `<tr>
+      <td><span class="act-swatch" style="background:${a.hex}"></span>${WS_LABELS[a.id]||a.label}</td>
+      <td><div class="ws-hours-bar">
+        <div class="hbar"><div class="hbar-fill" style="width:${pct*100}%;background:${a.hex}"></div></div>
+        <span class="ws-hours-num">${h>0?h.toFixed(1):'—'}</span>
+      </div></td>
+    </tr>`;
+  }).join('');
+  const rem=Math.max(0,168-totalH).toFixed(1);
+  tfoot.innerHTML=`<tr><td>Total =</td><td>${totalH.toFixed(1)} hrs</td></tr>
+    <tr><td>Hours Remaining =</td><td>${rem} hrs</td></tr>
+    <tr><td colspan="2" style="font-size:.72rem;color:var(--ink-light);font-weight:400;background:white">Each entry ≈ 1 hour · ${logs.length} entries total</td></tr>`;
+}
 
-// ── Calendar (168-hr visual grid) ────────────────────────────────────────
+// ── Calendar ──────────────────────────────────────────────────────────────
+
+function setCalMode(mode) {
+  calMode=mode;
+  document.querySelectorAll('.wm-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`wm-${mode}`).classList.add('active');
+
+  const nav=document.getElementById('week-nav');
+  const prog=document.getElementById('prog-wrap');
+
+  if(mode==='avg'){
+    nav.style.display='none';
+    prog.style.display='none';
+    document.getElementById('cal-subtext').textContent='Average across all your logged weeks.';
+  } else {
+    nav.style.display='flex';
+    prog.style.display='flex';
+    if(mode==='this'){
+      calWeekOffset=0;
+      document.getElementById('cal-subtext').textContent='Fills in as you log. Resets each Sunday.';
+    } else {
+      document.getElementById('cal-subtext').textContent='Browse any past week.';
+    }
+  }
+  renderCalendar();
+}
+
+function navWeek(dir) {
+  // In 'past' mode navigate through allWeekStarts
+  // In 'this' mode dir can only go negative (can't go to future)
+  if(calMode==='this' && dir>0) return;
+  calWeekOffset+=dir;
+  // Clamp: can't go earlier than oldest week
+  renderCalendar();
+}
+
 async function loadCalendar() {
-  const logs = await fetchAllLogs();
+  await getLogs(); // ensure cache + allWeekStarts populated
+  buildCalLegend();
+  renderCalendar();
+}
 
-  // Build legend
-  const legend = document.getElementById('cal-legend');
-  legend.innerHTML = ACTIVITIES.map(a =>
+function buildCalLegend() {
+  document.getElementById('cal-legend').innerHTML=ACTIVITIES.map(a=>
     `<div class="legend-item"><div class="legend-dot" style="background:${a.hex}"></div>${a.label}</div>`
   ).join('');
+}
 
-  // Build schedule map: (weekday_sun0, hour24) → [activity_id, ...]
-  // Use the most recent 7-day window
-  const schedule = {};
-  const now = new Date();
-  // Find the Sunday that started the current week
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay()))); // Sunday
-  weekStart.setHours(0,0,0,0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
+async function renderCalendar() {
+  const logs=await getLogs();
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML='';
 
-  // Use last 7 days of logs (rolling week from most recent Sunday)
-  const weekLogs = logs.filter(l => {
-    const d = new Date(l.logged_at);
-    return d >= weekStart && d < weekEnd;
+  if(calMode==='avg'){
+    renderAvgCalendar(logs, grid);
+    return;
+  }
+
+  // ── This Week / Past ─────────────────────────────────────────────────
+  // Determine which week to show
+  const thisSunday = currentWeekStart();
+
+  let viewWeekStart;
+  if(calMode==='this'){
+    viewWeekStart=thisSunday;
+  } else {
+    // past mode: calWeekOffset indexes into allWeekStarts
+    // 0 = most recent past week (not current), -1 = one before, etc.
+    const pastWeeks=allWeekStarts.filter(w=>w<thisSunday);
+    if(!pastWeeks.length){
+      grid.innerHTML='<div style="padding:32px;text-align:center;color:var(--ink-light);grid-column:1/-1">No past weeks logged yet.</div>';
+      updateWeekNav(null,false,false);
+      return;
+    }
+    // calWeekOffset starts at 0 = most recent past week
+    const idx=pastWeeks.length-1+calWeekOffset; // calWeekOffset <=0
+    const clamped=Math.max(0,Math.min(pastWeeks.length-1,idx));
+    calWeekOffset=clamped-(pastWeeks.length-1); // keep in sync
+    viewWeekStart=pastWeeks[clamped];
+    updateWeekNav(viewWeekStart, clamped>0, clamped<pastWeeks.length-1);
+  }
+
+  if(calMode==='this'){
+    const isThisWeek=viewWeekStart===thisSunday;
+    updateWeekNav(viewWeekStart, false, false);
+    document.getElementById('nav-prev').disabled=true;
+    document.getElementById('nav-next').disabled=true;
+    // label
+    const wl=document.getElementById('week-label');
+    wl.innerHTML=`${fmtWeekRange(viewWeekStart)}<span class="week-badge">Current</span>`;
+  }
+
+  // Filter logs for this week
+  const weekLogs=logs.filter(l=>l.week_start===viewWeekStart);
+
+  // Build schedule map: day(0-6) + hour24 → [activity_id]
+  const sched={};
+  weekLogs.forEach(l=>{
+    const dt=new Date(l.logged_at);
+    const key=`${dt.getDay()}_${dt.getHours()}`;
+    if(!sched[key]) sched[key]=[];
+    sched[key].push(l.activity);
   });
 
-  weekLogs.forEach(log => {
-    const dt = new Date(log.logged_at);
-    const daySun0 = dt.getDay(); // JS: 0=Sun
-    const hour = dt.getHours();
-    const key = `${daySun0}_${hour}`;
-    if (!schedule[key]) schedule[key] = [];
-    schedule[key].push(log.activity);
+  // Progress
+  const filled=Object.keys(sched).length;
+  const pct=Math.round((filled/168)*100);
+  document.getElementById('prog-pct').textContent=`${pct}%`;
+  document.getElementById('prog-fill').style.width=`${pct}%`;
+  document.getElementById('prog-left').textContent=`${filled} / 168 hours logged`;
+
+  // Build grid
+  buildGridDOM(grid, sched, false);
+}
+
+function updateWeekNav(weekStart, canPrev, canNext) {
+  document.getElementById('nav-prev').disabled=!canPrev;
+  document.getElementById('nav-next').disabled=!canNext;
+  if(weekStart && calMode==='past'){
+    document.getElementById('week-label').textContent=fmtWeekRange(weekStart);
+  }
+}
+
+function renderAvgCalendar(logs, grid) {
+  // For each (day, hour24) slot, count how many times each activity appears
+  // across ALL weeks that had at least one log in that slot.
+  // Result: sched[(day,hour)] = { activityId: count, ... }
+  const slotCounts={}; // key → {actId: count}
+
+  logs.forEach(l=>{
+    const dt=new Date(l.logged_at);
+    const key=`${dt.getDay()}_${dt.getHours()}`;
+    if(!slotCounts[key]) slotCounts[key]={};
+    slotCounts[key][l.activity]=(slotCounts[key][l.activity]||0)+1;
   });
 
-  // Count filled cells
-  const totalCells = 24 * 7; // 168
-  const filledCells = Object.keys(schedule).length;
-  const pct = Math.round((filledCells / totalCells) * 100);
-  document.getElementById('prog-pct').textContent = `${pct}%`;
-  document.getElementById('prog-fill').style.width = `${pct}%`;
+  // Update progress: % of 168 slots that have any data
+  const filled=Object.keys(slotCounts).length;
+  document.getElementById('prog-pct').textContent=`${Math.round(filled/168*100)}%`;
+  document.getElementById('prog-fill').style.width=`${filled/168*100}%`;
+  document.getElementById('prog-left').textContent=`${filled} / 168 slots have data`;
+  document.getElementById('prog-wrap').style.display='flex';
 
-  // Build grid DOM
-  const grid = document.getElementById('cal-grid');
-  grid.innerHTML = '';
+  // Show week count
+  const nWeeks=allWeekStarts.length;
+  document.getElementById('week-label').innerHTML=
+    `Average across <strong>${nWeeks}</strong> week${nWeeks!==1?'s':''}`;
+  document.getElementById('week-nav').style.display='flex';
+  document.getElementById('nav-prev').disabled=true;
+  document.getElementById('nav-next').disabled=true;
 
+  buildGridDOM(grid, slotCounts, true);
+}
+
+function buildGridDOM(grid, schedOrCounts, isAvg) {
   // Header row
-  const timeCorner = document.createElement('div');
-  timeCorner.className = 'cal-day-header';
-  timeCorner.textContent = '';
-  grid.appendChild(timeCorner);
-  DAYS_SHORT.forEach(d => {
-    const dh = document.createElement('div');
-    dh.className = 'cal-day-header';
-    dh.textContent = d;
+  const corner=document.createElement('div');
+  corner.className='cal-day-header'; corner.textContent='';
+  grid.appendChild(corner);
+  DAYS_SHORT.forEach(d=>{
+    const dh=document.createElement('div');
+    dh.className='cal-day-header'; dh.textContent=d;
     grid.appendChild(dh);
   });
 
   // Hour rows
-  HOURS_DISPLAY.forEach((hourLabel, hi) => {
-    const h24 = HOUR_24[hi];
+  HOUR_LABELS.forEach((lbl,hi)=>{
+    const h24=HOUR_24[hi];
 
-    // Time label cell
-    const tl = document.createElement('div');
-    tl.className = 'cal-time-label';
-    tl.textContent = hourLabel;
+    const tl=document.createElement('div');
+    tl.className='cal-time-label'; tl.textContent=lbl;
     grid.appendChild(tl);
 
-    // Day cells
-    for (let day = 0; day < 7; day++) {
-      const key = `${day}_${h24}`;
-      const acts = schedule[key] || [];
-      const cell = document.createElement('div');
-      cell.className = acts.length ? 'cal-cell filled' : 'cal-cell empty';
+    for(let day=0;day<7;day++){
+      const key=`${day}_${h24}`;
+      const cell=document.createElement('div');
 
-      if (acts.length) {
-        const inner = document.createElement('div');
-        inner.className = 'cal-cell-inner';
-        acts.forEach(id => {
-          const act = ACT_MAP[id];
-          const seg = document.createElement('div');
-          seg.className = 'cal-seg';
-          seg.style.background = act?.hex || '#888';
-          // Only show text if single activity
-          if (acts.length === 1) seg.textContent = act?.shortLabel || id;
-          inner.appendChild(seg);
-        });
-        cell.appendChild(inner);
-        // Tooltip
-        cell.title = acts.map(id => ACT_MAP[id]?.label || id).join(' + ') + '\n' + hourLabel;
+      if(isAvg){
+        // counts object or undefined
+        const counts=schedOrCounts[key];
+        if(!counts){
+          cell.className='cal-cell avg-empty';
+        } else {
+          cell.className='cal-cell filled';
+          const total=Object.values(counts).reduce((s,v)=>s+v,0);
+          const inner=document.createElement('div');
+          inner.className='cal-cell-inner h-stack';
+          // Sort by count descending so dominant activity is leftmost
+          Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([id,count])=>{
+            const seg=document.createElement('div');
+            seg.className='cal-seg';
+            seg.style.background=ACT[id]?.hex||'#888';
+            seg.style.flex=count; // proportional width
+            // Show label only if segment is dominant (>50%)
+            if(count/total>0.5) seg.textContent=ACT[id]?.short||id;
+            inner.appendChild(seg);
+          });
+          cell.appendChild(inner);
+          // Tooltip
+          const tip=Object.entries(counts).sort((a,b)=>b[1]-a[1])
+            .map(([id,c])=>`${ACT[id]?.label||id}: ${Math.round(c/total*100)}%`).join('\n');
+          cell.title=`${lbl} ${DAYS_SHORT[day]}\n${tip}`;
+        }
+      } else {
+        // standard week: schedOrCounts[key] = [activityId, ...]
+        const acts=schedOrCounts[key]||[];
+        if(!acts.length){
+          cell.className='cal-cell empty';
+        } else {
+          cell.className='cal-cell filled';
+          const inner=document.createElement('div');
+          inner.className='cal-cell-inner';
+          acts.forEach(id=>{
+            const seg=document.createElement('div');
+            seg.className='cal-seg';
+            seg.style.background=ACT[id]?.hex||'#888';
+            if(acts.length===1) seg.textContent=ACT[id]?.short||id;
+            inner.appendChild(seg);
+          });
+          cell.appendChild(inner);
+          cell.title=acts.map(id=>ACT[id]?.label||id).join(' + ')+'\n'+lbl;
+        }
       }
-
       grid.appendChild(cell);
     }
   });
@@ -764,179 +724,132 @@ async function loadCalendar() {
 
 // ── Excel Download ────────────────────────────────────────────────────────
 async function downloadExcel() {
-  const btn = document.getElementById('dl-btn');
-  btn.disabled = true; btn.innerHTML = '…building';
-  const logs = await fetchAllLogs();
-
+  const btn=document.getElementById('dl-btn');
+  btn.disabled=true; btn.innerHTML='…building';
+  const logs=await getLogs();
   try {
-    const wb = XLSX.utils.book_new();
-
-    // ── Sheet 1: Activity Summary (Part 2) ──
-    const hours = estimateHours(logs);
-    const wsData = [
-      ['How Are You Spending Your Time?'],
-      ['Part 2 — Activity Summary'],
-      [],
-      ['Activity', 'Time Spent (hours)', '% of 168 hrs'],
+    const wb=XLSX.utils.book_new();
+    // Sheet 1: Summary
+    const hours=estimateHours(logs);
+    const wsData=[
+      ['How Are You Spending Your Time?'],['Part 2 — Activity Summary'],[],
+      ['Activity','Time Spent (hours)','% of 168 hrs'],
     ];
-    let totalH = 0;
-    ACTIVITIES.forEach(act => {
-      const h = parseFloat((hours[act.id] || 0).toFixed(1));
-      totalH += h;
-      wsData.push([WS_LABELS[act.id] || act.label, h > 0 ? h : '', h > 0 ? h/168 : '']);
+    let totalH=0;
+    ACTIVITIES.forEach(a=>{
+      const h=parseFloat((hours[a.id]||0).toFixed(1)); totalH+=h;
+      wsData.push([WS_LABELS[a.id]||a.label, h||'', h?h/168:'']);
     });
-    wsData.push([]);
-    wsData.push(['Total =', parseFloat(totalH.toFixed(1)), '']);
-    wsData.push(['Hours Remaining =', parseFloat(Math.max(0, 168 - totalH).toFixed(1)), '']);
-    wsData.push([]);
-    wsData.push([`Based on ${logs.length} logged entries. Each entry ≈ 1 hour in that slot.`]);
-
-    const ws1 = XLSX.utils.aoa_to_sheet(wsData);
-    // Column widths
-    ws1['!cols'] = [{ wch: 48 }, { wch: 22 }, { wch: 16 }];
-    // Merge title cell
-    ws1['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:2} }, { s:{r:1,c:0}, e:{r:1,c:2} }];
-    // Format percentage column
-    const pctFmt = '0.0%';
-    for (let r = 4; r < 4 + ACTIVITIES.length; r++) {
-      const addr = XLSX.utils.encode_cell({r, c:2});
-      if (ws1[addr] && typeof ws1[addr].v === 'number') {
-        ws1[addr].t = 'n';
-        ws1[addr].z = pctFmt;
-      }
+    wsData.push([],['Total =',parseFloat(totalH.toFixed(1)),''],
+      ['Hours Remaining =',parseFloat(Math.max(0,168-totalH).toFixed(1)),''],
+      [],[`Based on ${logs.length} entries. Each entry ≈ 1 hour.`]);
+    const ws1=XLSX.utils.aoa_to_sheet(wsData);
+    ws1['!cols']=[{wch:48},{wch:22},{wch:16}];
+    ws1['!merges']=[{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}}];
+    for(let r=4;r<4+ACTIVITIES.length;r++){
+      const addr=XLSX.utils.encode_cell({r,c:2});
+      if(ws1[addr]&&typeof ws1[addr].v==='number'){ws1[addr].t='n';ws1[addr].z='0.0%';}
     }
-    XLSX.utils.book_append_sheet(wb, ws1, 'Activity Summary');
+    XLSX.utils.book_append_sheet(wb,ws1,'Activity Summary');
 
-    // ── Sheet 2: Weekly Schedule (Part 1) ──
-    // Build schedule for most recent Sunday-based week
-    const schedMap = {};
-    const now2 = new Date();
-    const wkStart = new Date(now2);
-    wkStart.setDate(now2.getDate() - now2.getDay());
-    wkStart.setHours(0,0,0,0);
-    const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate()+7);
-    logs.filter(l => { const d=new Date(l.logged_at); return d>=wkStart&&d<wkEnd; })
-      .forEach(log => {
-        const dt = new Date(log.logged_at);
-        const key = `${dt.getDay()}_${dt.getHours()}`;
-        if (!schedMap[key]) schedMap[key] = [];
-        schedMap[key].push(log.activity);
-      });
-
-    const HOURS_FULL = [
-      '6:00 AM','7:00 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM',
-      '12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM',
-      '6:00 PM','7:00 PM','8:00 PM','9:00 PM','10:00 PM','11:00 PM',
-      '12:00 AM','1:00 AM','2:00 AM','3:00 AM','4:00 AM','5:00 AM',
-    ];
-    const schedRows = [
-      ['How Are You Spending Your Time?'],
-      ['Part 1 — Weekly Schedule'],
-      [],
-      ['Time', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-    ];
-    HOURS_FULL.forEach((hl, hi) => {
-      const h24 = HOUR_24[hi];
-      const row = [hl];
-      for (let d = 0; d < 7; d++) {
-        const acts = schedMap[`${d}_${h24}`] || [];
-        row.push(acts.map(id => ACT_MAP[id]?.label || id).join(' / ') || '');
-      }
-      schedRows.push(row);
+    // Sheet 2: Weekly schedule (current week)
+    const HFULL=['6:00 AM','7:00 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM','7:00 PM','8:00 PM','9:00 PM','10:00 PM','11:00 PM','12:00 AM','1:00 AM','2:00 AM','3:00 AM','4:00 AM','5:00 AM'];
+    const thisWeekLogs=logs.filter(l=>l.week_start===currentWeekStart());
+    const sm={};
+    thisWeekLogs.forEach(l=>{
+      const dt=new Date(l.logged_at);
+      const k=`${dt.getDay()}_${dt.getHours()}`;
+      if(!sm[k])sm[k]=[];
+      sm[k].push(l.activity);
     });
-    const ws2 = XLSX.utils.aoa_to_sheet(schedRows);
-    ws2['!cols'] = [{ wch: 12 }, ...Array(7).fill({ wch: 16 })];
-    ws2['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:7} }, { s:{r:1,c:0}, e:{r:1,c:7} }];
-    XLSX.utils.book_append_sheet(wb, ws2, 'Weekly Schedule');
-
-    // ── Sheet 3: Raw Log ──
-    const rawRows = [['Timestamp', 'Activity', 'Label', 'Note']];
-    logs.forEach(l => {
-      rawRows.push([
-        new Date(l.logged_at).toLocaleString(),
-        l.activity,
-        ACT_MAP[l.activity]?.label || l.activity,
-        l.note || '',
-      ]);
+    const sRows=[['How Are You Spending Your Time?'],['Part 1 — Weekly Schedule ('+fmtWeekRange(currentWeekStart())+')'],[],
+      ['Time','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']];
+    HFULL.forEach((hl,hi)=>{
+      const h24=HOUR_24[hi];
+      const row=[hl];
+      for(let d=0;d<7;d++) row.push((sm[`${d}_${h24}`]||[]).map(id=>ACT[id]?.label||id).join(' / ')||'');
+      sRows.push(row);
     });
-    const ws3 = XLSX.utils.aoa_to_sheet(rawRows);
-    ws3['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 28 }, { wch: 32 }];
-    XLSX.utils.book_append_sheet(wb, ws3, 'Raw Log');
+    const ws2=XLSX.utils.aoa_to_sheet(sRows);
+    ws2['!cols']=[{wch:12},...Array(7).fill({wch:16})];
+    ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+    XLSX.utils.book_append_sheet(wb,ws2,'Weekly Schedule');
 
-    // Generate filename with date range
-    const dateStr = new Date().toISOString().slice(0,10);
-    XLSX.writeFile(wb, `168-hours-${dateStr}.xlsx`);
+    // Sheet 3: All weeks summary
+    const weekRows=[['Week','Sun','Mon','Tue','Wed','Thu','Fri','Sat','Total Entries']];
+    allWeekStarts.forEach(ws=>{
+      const wl=logs.filter(l=>l.week_start===ws);
+      const dayCounts=[0,0,0,0,0,0,0];
+      wl.forEach(l=>{ const dt=new Date(l.logged_at); dayCounts[dt.getDay()]++; });
+      weekRows.push([fmtWeekRange(ws),...dayCounts,wl.length]);
+    });
+    const ws3=XLSX.utils.aoa_to_sheet(weekRows);
+    ws3['!cols']=[{wch:22},...Array(7).fill({wch:8}),{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws3,'All Weeks');
+
+    // Sheet 4: Raw log
+    const rawRows=[['Week Start','Timestamp','Day','Hour','Activity','Label','Note']];
+    logs.forEach(l=>{
+      const dt=new Date(l.logged_at);
+      rawRows.push([l.week_start,dt.toLocaleString(),DAYS_SHORT[dt.getDay()],dt.getHours(),l.activity,ACT[l.activity]?.label||l.activity,l.note||'']);
+    });
+    const ws4=XLSX.utils.aoa_to_sheet(rawRows);
+    ws4['!cols']=[{wch:12},{wch:22},{wch:6},{wch:6},{wch:12},{wch:28},{wch:32}];
+    XLSX.utils.book_append_sheet(wb,ws4,'Raw Log');
+
+    XLSX.writeFile(wb,`168-hours-${new Date().toISOString().slice(0,10)}.xlsx`);
     showToast('✓ Downloaded');
-  } catch(e) {
-    showToast('⚠️ Export failed');
-    console.error(e);
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download .xlsx`;
-}
-
-// ── Toast ─────────────────────────────────────────────────────────────────
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  } catch(e){ showToast('⚠️ Export failed'); console.error(e); }
+  btn.disabled=false;
+  btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download .xlsx';
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────
-const BLOCKS = [[8,10],[10,12],[12,14],[14,16],[16,18],[18,20],[20,22]];
-const SCHEDULE_KEY = 'notif_schedule';
-
-function getOrBuildSchedule() {
-  const stored = localStorage.getItem(SCHEDULE_KEY);
-  const today = new Date().toDateString();
-  if (stored) { const p = JSON.parse(stored); if (p.date === today) return p.times; }
-  const times = BLOCKS.map(([s,e]) => {
-    const base = new Date(); base.setHours(s,0,0,0);
-    const end  = new Date(); end.setHours(e,0,0,0);
-    return base.getTime() + Math.random() * (end.getTime() - base.getTime());
+const BLOCKS=[[8,10],[10,12],[12,14],[14,16],[16,18],[18,20],[20,22]];
+function getOrBuildSchedule(){
+  const stored=localStorage.getItem('notif_schedule');
+  const today=new Date().toDateString();
+  if(stored){const p=JSON.parse(stored);if(p.date===today)return p.times;}
+  const times=BLOCKS.map(([s,e])=>{
+    const base=new Date();base.setHours(s,0,0,0);
+    const end=new Date();end.setHours(e,0,0,0);
+    return base.getTime()+Math.random()*(end.getTime()-base.getTime());
   });
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify({ date: today, times }));
+  localStorage.setItem('notif_schedule',JSON.stringify({date:today,times}));
   return times;
 }
-
-function armNotifications() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const now = Date.now();
-  getOrBuildSchedule().filter(t => t > now).forEach(t => {
-    setTimeout(() => {
-      new Notification('⏱ 168 Hours', {
-        body: 'What are you doing right now?',
-        icon: 'icon.png', tag: 'time-check', requireInteraction: false,
-      });
-    }, t - now);
+function armNotifications(){
+  if(!('Notification'in window)||Notification.permission!=='granted')return;
+  const now=Date.now();
+  getOrBuildSchedule().filter(t=>t>now).forEach(t=>{
+    setTimeout(()=>new Notification('⏱ 168 Hours',{body:'What are you doing right now?',icon:'icon.png',tag:'time-check',requireInteraction:false}),t-now);
   });
 }
+async function toggleNotifications(){
+  const btn=document.getElementById('notif-btn');
+  if(!('Notification'in window)){showToast('Notifications not supported');return;}
+  if(Notification.permission==='granted'){btn.classList.add('active');btn.textContent='Reminders On';armNotifications();showToast('Reminders already enabled ✓');return;}
+  const perm=await Notification.requestPermission();
+  if(perm==='granted'){btn.classList.add('active');btn.textContent='Reminders On';armNotifications();showToast('Reminders scheduled ✓');}
+  else showToast('Permission denied');
+}
 
-async function toggleNotifications() {
-  const btn = document.getElementById('notif-btn');
-  if (!('Notification' in window)) { showToast('Notifications not supported'); return; }
-  if (Notification.permission === 'granted') {
-    btn.classList.add('active'); btn.textContent = 'Reminders On';
-    armNotifications(); showToast('Reminders already enabled ✓'); return;
-  }
-  const perm = await Notification.requestPermission();
-  if (perm === 'granted') {
-    btn.classList.add('active'); btn.textContent = 'Reminders On';
-    armNotifications(); showToast('Reminders scheduled for today ✓');
-  } else { showToast('Permission denied — enable in browser settings'); }
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-window.addEventListener('load', () => {
+window.addEventListener('load',()=>{
   buildGrid();
-  if (Notification.permission === 'granted') {
+  if(Notification.permission==='granted'){
     document.getElementById('notif-btn').classList.add('active');
-    document.getElementById('notif-btn').textContent = 'Reminders On';
+    document.getElementById('notif-btn').textContent='Reminders On';
     armNotifications();
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 });
 </script>
 </body>
