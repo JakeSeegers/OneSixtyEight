@@ -1,4 +1,4 @@
-const CACHE = '168hours-v1';
+const CACHE = '168hours-v2';
 const ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
@@ -19,8 +19,31 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Open the app when a notification is clicked
+// Web Push: show a notification when the server pushes one (works while app is closed)
+self.addEventListener('push', e => {
+  let data = { title: '168 Hours', body: 'What are you doing right now?', url: '/' };
+  try {
+    if (e.data) data = { ...data, ...e.data.json() };
+  } catch (_) {
+    if (e.data) data.body = e.data.text();
+  }
+  e.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: 'favicon.png',
+    badge: 'favicon.png',
+    tag: 'time-check',
+    renotify: true,
+    data: { url: data.url || '/' },
+  }));
+});
+
+// Open or focus the app when a notification is clicked
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.openWindow('/'));
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil((async () => {
+    const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) { if ('focus' in c) return c.focus(); }
+    if (clients.openWindow) return clients.openWindow(url);
+  })());
 });

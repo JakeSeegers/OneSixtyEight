@@ -396,9 +396,16 @@
         <div class="setting-row">
           <div class="setting-info">
             <strong>Random reminders</strong>
-            <small>7 prompts per day, randomly spaced 8 am – 10 pm.</small>
+            <small>7 prompts per day, randomly spaced 8 am – 10 pm (ET). Delivered even when the app is closed.</small>
           </div>
           <button class="pill-btn" id="s-notif-btn" onclick="toggleNotifications()">Enable</button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Send a test</strong>
+            <small id="ios-hint">Fires a notification to this device right now.</small>
+          </div>
+          <button class="pill-btn" onclick="sendTestPush()">Test</button>
         </div>
       </div>
 
@@ -678,7 +685,7 @@ db.auth.onAuthStateChange(async(event,session)=>{
     rebuildActivityList();
     buildGrid();
     updateNotifBtn();
-    if(Notification.permission==='granted') armNotifications();
+    if(Notification.permission==='granted') ensurePush();
     isAuthing=false;
     authChangeHandling=false;
   } else {
@@ -1133,14 +1140,81 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Enter key in auth form
   document.getElementById('auth-password').addEventListener('keydown',e=>{ if(e.key==='Enter') handleAuth(); });
   document.getElementById('auth-email').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('auth-password').focus(); });
+  // Register service worker (required for Web Push), then re-affirm subscription
+  registerSW().then(()=>ensurePush());
+  // iOS requires the PWA to be installed before Web Push works
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  if(isIOS&&!standalone){ const h=document.getElementById('ios-hint'); if(h) h.textContent='On iPhone: tap Share → Add to Home Screen, then open it from there to enable notifications.'; }
 });
 
-// ── Notifications ──────────────────────────────────────────────────────────
-const BLOCKS=[[8,10],[10,12],[12,14],[14,16],[16,18],[18,20],[20,22]];
-function getOrBuildSchedule(){ const s=localStorage.getItem('notif_schedule'),today=new Date().toDateString(); if(s){const p=JSON.parse(s);if(p.date===today)return p.times;} const times=BLOCKS.map(([a,b])=>{ const base=new Date();base.setHours(a,0,0,0);const end=new Date();end.setHours(b,0,0,0);return base.getTime()+Math.random()*(end.getTime()-base.getTime()); }); localStorage.setItem('notif_schedule',JSON.stringify({date:today,times})); return times; }
-function armNotifications(){ if(!('Notification' in window)||Notification.permission!=='granted')return; const times=getOrBuildSchedule(),now=Date.now(); times.forEach(t=>{ const d=t-now; if(d>0&&d<864e5) setTimeout(()=>{ if(Notification.permission==='granted') new Notification('168 Hours',{body:'What are you doing right now?',icon:'/favicon.ico'}); },d); }); }
+// ── Notifications (Web Push) ────────────────────────────────────────────────
+// Random prompts are scheduled & delivered server-side (Supabase cron + Edge
+// Function), so they arrive even when the app is closed. The client's only job
+// is to register a push subscription and hand it to the backend.
+const VAPID_PUBLIC_KEY='BJIBC7i3B0dBIgycvKV2xVrcO4qip2C4gp7ALtwM9EaXDzmwIUYN1hoft9HGsZ4BT_P7vT0IPGtPGdIw5Ohxv_I';
+let swRegistration=null;
+
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64), arr=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function registerSW(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{ swRegistration=await navigator.serviceWorker.register('sw.js'); }
+  catch(e){ console.warn('[168] SW register failed:', e.message); }
+  return swRegistration;
+}
+async function subscribePush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){ return false; }
+  if(!currentUser) return false;
+  const reg=swRegistration||await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){
+    sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+  }
+  const j=sub.toJSON();
+  const {error}=await db.from('push_subscriptions').upsert(
+    { user_id:currentUser.id, endpoint:sub.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth },
+    { onConflict:'endpoint' }
+  );
+  if(error){ console.warn('[168] save subscription failed:', error.message); return false; }
+  return true;
+}
+// Silently re-affirm the subscription on load when already permitted
+async function ensurePush(){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  try{ await subscribePush(); }catch(e){ console.warn('[168] ensurePush failed:', e.message); }
+}
 function updateNotifBtn(){ const g='Notification' in window&&Notification.permission==='granted'; const nb=document.getElementById('notif-btn'),sb=document.getElementById('s-notif-btn'); if(nb){nb.textContent=g?'Reminders On':'Reminders';nb.classList.toggle('active',g);} if(sb){sb.textContent=g?'Enabled':'Enable';sb.classList.toggle('active',g);} }
-function toggleNotifications(){ if(!('Notification' in window)){showToast('Notifications not supported');return;} if(Notification.permission==='granted'){showToast('Reminders are already on');updateNotifBtn();armNotifications();return;} if(Notification.permission==='denied'){showToast('Notifications blocked — check browser settings');return;} Notification.requestPermission().then(p=>{if(p==='granted'){showToast('Reminders enabled!');armNotifications();}else showToast('Permission denied');updateNotifBtn();}); }
+async function toggleNotifications(){
+  if(!('Notification' in window)){ showToast('Notifications not supported'); return; }
+  if(Notification.permission==='denied'){ showToast('Notifications blocked — check browser settings'); return; }
+  if(Notification.permission!=='granted'){
+    const p=await Notification.requestPermission();
+    if(p!=='granted'){ showToast('Permission denied'); updateNotifBtn(); return; }
+  }
+  showToast('Enabling reminders…');
+  const ok=await subscribePush();
+  showToast(ok?'Reminders enabled!':'Could not enable reminders');
+  updateNotifBtn();
+}
+async function sendTestPush(){
+  if(!currentUser){ showToast('Sign in first'); return; }
+  if(!('Notification' in window)||Notification.permission!=='granted'){ showToast('Enable reminders first'); return; }
+  const ok=await subscribePush();
+  if(!ok){ showToast('Enable reminders first'); return; }
+  const { data:{ session } }=await db.auth.getSession();
+  if(!session){ showToast('Sign in first'); return; }
+  try{
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/send-push`,{ method:'POST', headers:{ 'Authorization':`Bearer ${session.access_token}`, 'Content-Type':'application/json' }, body:'{}' });
+    const out=await r.json();
+    showToast(out.sent>0?'Test sent — check your notifications':'No device registered yet');
+  }catch(e){ showToast('Test failed'); console.error(e); }
+}
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._to); t._to=setTimeout(()=>t.classList.remove('show'),2200); }
 </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a05124a6cf67d878',t:'MTc4MDM0NzU3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
