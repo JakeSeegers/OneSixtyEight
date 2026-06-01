@@ -1171,7 +1171,9 @@ async function registerSW(){
 async function subscribePush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)){ return false; }
   if(!currentUser) return false;
-  const reg=swRegistration||await navigator.serviceWorker.ready;
+  if(!swRegistration) await registerSW();
+  // pushManager.subscribe() needs an ACTIVE worker; serviceWorker.ready resolves only once one is active
+  const reg=await navigator.serviceWorker.ready;
   let sub=await reg.pushManager.getSubscription();
   if(!sub){
     sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
