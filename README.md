@@ -48,7 +48,7 @@ The categories mirror the 168-hour worksheet used in college success and life-pl
 | **History** | Last 60 entries, newest first |
 | **Stats** | Doughnut chart + percentage bars across all time |
 | **Summary** | Replica of the 168-hour Part 2 worksheet, filled with your data + Download .xlsx button |
-| **Calendar** | 168-cell grid (24 hours × 7 days), colored by logged activity for the current week |
+| **Calendar** | 168-cell grid with three sub-views: This Week (live), Past (browse any archived week), Average (stacked bands across all weeks) |
 
 ## Database
 
@@ -62,9 +62,16 @@ CREATE TABLE time_logs (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   activity   text        NOT NULL,
   note       text,
-  logged_at  timestamptz NOT NULL DEFAULT now()
+  logged_at  timestamptz NOT NULL DEFAULT now(),
+  week_start date        NOT NULL DEFAULT (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_TIMESTAMP)::int * INTERVAL '1 day')::date
 );
+
+CREATE INDEX idx_time_logs_week_start ON time_logs(week_start);
 ```
+
+`week_start` is always the **Sunday** of whichever calendar week the entry belongs to, computed automatically. It is the primary key for week-based queries and never needs to be set manually — the database DEFAULT handles it. The JS client also sends it explicitly so the local cache stays consistent before the next fetch.
+
+**Week rollover:** automatic. At Sunday midnight, new logs get a new `week_start`. Old weeks are never modified. There is no "close week" action.
 
 ### RLS Policies
 
