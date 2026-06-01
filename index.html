@@ -717,14 +717,18 @@ async function safeQuery(fn, label){
 
 // ── Prefs ─────────────────────────────────────────────────────────────────
 async function loadPrefs(){
-  const {data,error}=await safeQuery(()=>db.from('user_prefs').select('*'),'prefs');
-  if(error){ showToast('Error loading preferences: '+error.message); return; }
+  const {data,error}=await safeQuery(()=>db.from('user_prefs').select('*').eq('user_id',currentUser.id),'prefs');
+  if(error){ console.warn('[168] loadPrefs failed:', error.message); return; }
   if(!data) return;
   data.forEach(r=>{ if(r.key==='week_size') weekSize=parseInt(r.value)||168; });
   updateWeekSizeUI();
 }
 async function savePref(key,value){
-  await db.from('user_prefs').upsert({key,value:String(value),user_id:currentUser.id},{onConflict:'key,user_id'});
+  const {error}=await db.from('user_prefs').upsert(
+    {key,value:String(value),user_id:currentUser.id},
+    {onConflict:'user_id,key'}  // must match PRIMARY KEY order
+  );
+  if(error) console.warn('[168] savePref failed:', error.message);
 }
 function updateWeekSizeUI(){
   document.getElementById('ws-168').classList.toggle('active',weekSize===168);
@@ -741,8 +745,8 @@ async function setWeekSize(size){
 
 // ── Custom activities ─────────────────────────────────────────────────────
 async function loadCustomActs(){
-  const {data,error}=await safeQuery(()=>db.from('custom_activities').select('*').order('created_at'),'custom acts');
-  if(error){ showToast('Error loading activities: '+error.message); return; }
+  const {data,error}=await safeQuery(()=>db.from('custom_activities').select('*').eq('user_id',currentUser.id).order('created_at'),'custom acts');
+  if(error){ console.warn('[168] loadCustomActs failed:', error.message); return; }
   customActs=data||[];
 }
 function rebuildActivityList(){
@@ -887,7 +891,7 @@ function showTab(tab){
 // ── Data cache ─────────────────────────────────────────────────────────────
 async function getLogs(){
   if(logCache) return logCache;
-  const {data,error}=await safeQuery(()=>db.from('time_logs').select('*').order('logged_at',{ascending:true}),'logs');
+  const {data,error}=await safeQuery(()=>db.from('time_logs').select('*').eq('user_id',currentUser.id).order('logged_at',{ascending:true}),'logs');
   if(error){ return []; }
   logCache=data||[];
   allWeekStarts=[...new Set(logCache.map(l=>l.week_start))].sort();
@@ -1139,4 +1143,4 @@ function updateNotifBtn(){ const g='Notification' in window&&Notification.permis
 function toggleNotifications(){ if(!('Notification' in window)){showToast('Notifications not supported');return;} if(Notification.permission==='granted'){showToast('Reminders are already on');updateNotifBtn();armNotifications();return;} if(Notification.permission==='denied'){showToast('Notifications blocked — check browser settings');return;} Notification.requestPermission().then(p=>{if(p==='granted'){showToast('Reminders enabled!');armNotifications();}else showToast('Permission denied');updateNotifBtn();}); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._to); t._to=setTimeout(()=>t.classList.remove('show'),2200); }
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a05105f34a81dfa4',t:'MTc4MDM0NjMxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a05124a6cf67d878',t:'MTc4MDM0NzU3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
