@@ -39,6 +39,17 @@ The categories mirror the 168-hour worksheet used in college success and life-pl
 
 ---
 
+
+## Tabs
+
+| Tab | Purpose |
+|---|---|
+| **Log** | Tap an activity category + optional note → saves to Supabase |
+| **History** | Last 60 entries, newest first |
+| **Stats** | Doughnut chart + percentage bars across all time |
+| **Summary** | Replica of the 168-hour Part 2 worksheet, filled with your data + Download .xlsx button |
+| **Calendar** | 168-cell grid (24 hours × 7 days), colored by logged activity for the current week |
+
 ## Database
 
 **Supabase project:** `kcsjdgpatoiprgvthdlc`
