@@ -266,6 +266,7 @@
       </div>
       <div id="auth-msg" class="auth-msg"></div>
       <button class="auth-submit" id="auth-submit" onclick="handleAuth()">Sign in</button>
+      <button type="button" id="forgot-pw-link" onclick="resetPassword()" style="display:none;background:none;border:none;font-size:.78rem;color:var(--ink-light);cursor:pointer;text-decoration:underline;margin-top:-4px">Forgot password?</button>
     </div>
 
     <hr class="auth-divider">
@@ -516,7 +517,7 @@ const DAYS_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 // ── App state ─────────────────────────────────────────────────────────────
 let currentUser=null;
 let ACTIVITIES=[...BUILTIN];
-let ACT={};
+let ACT=Object.fromEntries(BUILTIN.map(a=>[a.id,a])); // Initialize immediately
 let selectedActivity=null;
 let pieChart=null;
 let logCache=null;
@@ -529,6 +530,12 @@ let newActColor=CUSTOM_COLORS[0];
 let addFormVisible=false;
 let pendingSignupEmail='';
 let authMode='signin';
+let isAuthing=false; // prevent race between handleAuth and onAuthStateChange
+
+(function initAuthUI(){
+  document.getElementById('forgot-pw-link').style.display='block'; // shown on signin tab
+  document.getElementById('auth-screen').style.display='flex';
+})();
 
 // ── Auth UI ───────────────────────────────────────────────────────────────
 function switchAuthTab(mode){
@@ -538,6 +545,7 @@ function switchAuthTab(mode){
   document.getElementById('auth-submit').textContent=mode==='signin'?'Sign in':'Create account';
   document.getElementById('auth-password').placeholder=mode==='signup'?'Min. 8 characters':'••••••••';
   document.getElementById('auth-password').autocomplete=mode==='signup'?'new-password':'current-password';
+  document.getElementById('forgot-pw-link').style.display=mode==='signin'?'block':'none';
   clearAuthMsg();
 }
 
@@ -564,12 +572,20 @@ async function handleAuth(){
   btn.disabled=true;
   btn.textContent=authMode==='signin'?'Signing in…':'Creating account…';
   clearAuthMsg();
+  isAuthing=true;
 
   if(authMode==='signup'){
     const {data,error}=await db.auth.signUp({email,password});
     btn.disabled=false; btn.textContent='Create account';
+    isAuthing=false;
     if(error){ showAuthMsg(error.message,'error'); return; }
-    // Show verify screen
+    // If got a session back, email confirmation is OFF — user is signed in
+    // onAuthStateChange will handle showing the app
+    if(data.session){
+      console.log('[168] Signup succeeded with session, waiting for auth state change');
+      return;
+    }
+    // Email confirmation is ON — show verify screen
     pendingSignupEmail=email;
     document.getElementById('auth-screen').style.display='none';
     document.getElementById('verify-email-display').textContent=email;
@@ -577,6 +593,7 @@ async function handleAuth(){
   } else {
     const {data,error}=await db.auth.signInWithPassword({email,password});
     btn.disabled=false; btn.textContent='Sign in';
+    isAuthing=false;
     if(error){
       if(error.message.toLowerCase().includes('email not confirmed')){
         pendingSignupEmail=email;
@@ -588,6 +605,7 @@ async function handleAuth(){
       } else {
         showAuthMsg(error.message,'error');
       }
+      isAuthing=false;
       return;
     }
     // Session will be picked up by onAuthStateChange
@@ -601,8 +619,21 @@ async function resendVerification(){
   else showToast('Verification email sent');
 }
 
+async function resetPassword(){
+  const email=document.getElementById('auth-email').value.trim();
+  if(!email){ showAuthMsg('Enter your email first, then click Forgot password.','error'); return; }
+  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+  if(error){ showAuthMsg(error.message,'error'); return; }
+  showAuthMsg('Password reset link sent! Check your email.','info');
+}
+
 async function signOut(){
-  await db.auth.signOut();
+  try {
+    await db.auth.signOut();
+  } catch(e) {
+    console.warn('[168] Sign out server call failed (session may already be invalid):', e.message);
+  }
+  // Always clear local state and show auth screen, even if server call fails
   currentUser=null;
   logCache=null;
   customActs=[];
@@ -613,33 +644,66 @@ async function signOut(){
   document.getElementById('auth-screen').style.display='flex';
   document.getElementById('auth-email').value='';
   document.getElementById('auth-password').value='';
+  document.getElementById('tab-signin').classList.add('active');
+  document.getElementById('tab-signup').classList.remove('active');
+  document.getElementById('auth-submit').textContent='Sign in';
+  document.getElementById('forgot-pw-link').style.display='block';
+  authMode='signin';
   clearAuthMsg();
+  showToast('Signed out');
 }
 
 // ── Session management ────────────────────────────────────────────────────
 db.auth.onAuthStateChange(async(event,session)=>{
-  if(session?.user){
+  console.log('[168] Auth state change:', event, session?.user?.email || '(no user)');
+  if(session?.user && !currentUser){
     currentUser=session.user;
     // Hide auth/verify, show app
     document.getElementById('auth-screen').style.display='none';
     document.getElementById('verify-screen').style.display='none';
     document.getElementById('app').classList.add('visible');
     document.getElementById('user-email-display').textContent=currentUser.email;
-    await loadPrefs();
-    await loadCustomActs();
+    // Load data — catch errors so one failure doesn't break everything
+    try { await loadPrefs(); } catch(e){ console.warn('[168] loadPrefs failed:', e.message); }
+    try { await loadCustomActs(); } catch(e){ console.warn('[168] loadCustomActs failed:', e.message); }
+    // Verify session is actually valid with a lightweight query
+    if(event==='INITIAL_SESSION' || event==='TOKEN_REFRESHED'){
+      const {error}=await db.from('custom_activities').select('count',{count:'exact',head:true});
+      if(error && (error.message.includes('JWT')||error.code==='PGRST301'||error.status===401||error.message.includes('expired'))){
+        console.warn('[168] Session token invalid, clearing local session');
+        // Clear all supabase localStorage keys
+        for(const key of Object.keys(localStorage)){
+          if(key.startsWith('sb-')) localStorage.removeItem(key);
+        }
+        currentUser=null;
+        document.getElementById('app').classList.remove('visible');
+        document.getElementById('auth-screen').style.display='flex';
+        showToast('Session expired — please sign in again');
+        return;
+      }
+    }
     rebuildActivityList();
     buildGrid();
     updateNotifBtn();
     if(Notification.permission==='granted') armNotifications();
-  } else {
-    currentUser=null;
+  } else if(!session?.user && currentUser){
+    // Signed out or session expired
     document.getElementById('app').classList.remove('visible');
+    document.getElementById('auth-screen').style.display='flex';
+    document.getElementById('tab-signin').classList.add('active');
+    document.getElementById('tab-signup').classList.remove('active');
+    document.getElementById('auth-submit').textContent='Sign in';
+    document.getElementById('forgot-pw-link').style.display='block';
+    authMode='signin';
+    currentUser=null;
+    logCache=null;
   }
 });
 
 // ── Prefs ─────────────────────────────────────────────────────────────────
 async function loadPrefs(){
-  const {data}=await db.from('user_prefs').select('*');
+  const {data,error}=await db.from('user_prefs').select('*');
+  if(error){ console.warn('[168] user_prefs query error:', error.message); return; }
   if(!data) return;
   data.forEach(r=>{ if(r.key==='week_size') weekSize=parseInt(r.value)||168; });
   updateWeekSizeUI();
@@ -662,7 +726,8 @@ async function setWeekSize(size){
 
 // ── Custom activities ─────────────────────────────────────────────────────
 async function loadCustomActs(){
-  const {data}=await db.from('custom_activities').select('*').order('created_at');
+  const {data,error}=await db.from('custom_activities').select('*').order('created_at');
+  if(error){ console.warn('[168] custom_activities query error:', error.message); return; }
   customActs=data||[];
 }
 function rebuildActivityList(){
@@ -807,7 +872,8 @@ function showTab(tab){
 // ── Data cache ─────────────────────────────────────────────────────────────
 async function getLogs(){
   if(logCache) return logCache;
-  const {data}=await db.from('time_logs').select('*').order('logged_at',{ascending:true});
+  const {data,error}=await db.from('time_logs').select('*').order('logged_at',{ascending:true});
+  if(error){ console.warn('[168] time_logs query error:', error.message); return []; }
   logCache=data||[];
   allWeekStarts=[...new Set(logCache.map(l=>l.week_start))].sort();
   return logCache;
@@ -1058,4 +1124,3 @@ function updateNotifBtn(){ const g='Notification' in window&&Notification.permis
 function toggleNotifications(){ if(!('Notification' in window)){showToast('Notifications not supported');return;} if(Notification.permission==='granted'){showToast('Reminders are already on');updateNotifBtn();armNotifications();return;} if(Notification.permission==='denied'){showToast('Notifications blocked — check browser settings');return;} Notification.requestPermission().then(p=>{if(p==='granted'){showToast('Reminders enabled!');armNotifications();}else showToast('Permission denied');updateNotifBtn();}); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._to); t._to=setTimeout(()=>t.classList.remove('show'),2200); }
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0507e78c87af275',t:'MTc4MDM0MDc3MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
