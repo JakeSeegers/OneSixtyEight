@@ -461,10 +461,29 @@
 <div id="toast"></div>
 
 <script>
+console.log('[168] Script starting, supabase loaded:', typeof supabase !== 'undefined');
+
 // ── Supabase ──────────────────────────────────────────────────────────────
 const SUPABASE_URL='https://kcsjdgpatoiprgvthdlc.supabase.co';
 const SUPABASE_KEY='sb_publishable_tvlXARIX31Wk5P-SRPuMzw__MTBYtcH';
-const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let db;
+try {
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  console.log('[168] Supabase client created successfully');
+} catch(e) {
+  console.error('[168] Supabase init failed:', e.message);
+  db = {
+    auth: {
+      signUp: async()=>{throw new Error('Supabase not loaded')},
+      signInWithPassword: async()=>{throw new Error('Supabase not loaded')},
+      signOut: async()=>{},
+      onAuthStateChange: ()=>{},
+      resend: async()=>{},
+      getSession: async()=>({data:{session:null}})
+    },
+    from: ()=>({select: async()=>({data:[]}), upsert: async()=>({}), insert: async()=>({}), delete: async()=>({eq:()=>({})})})
+  };
+}
 
 // ── Activities ────────────────────────────────────────────────────────────
 const BUILTIN=[
@@ -1039,4 +1058,4 @@ function updateNotifBtn(){ const g='Notification' in window&&Notification.permis
 function toggleNotifications(){ if(!('Notification' in window)){showToast('Notifications not supported');return;} if(Notification.permission==='granted'){showToast('Reminders are already on');updateNotifBtn();armNotifications();return;} if(Notification.permission==='denied'){showToast('Notifications blocked — check browser settings');return;} Notification.requestPermission().then(p=>{if(p==='granted'){showToast('Reminders enabled!');armNotifications();}else showToast('Permission denied');updateNotifBtn();}); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._to); t._to=setTimeout(()=>t.classList.remove('show'),2200); }
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0507e78c87af275',t:'MTc4MDM0MDc3MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
