@@ -472,7 +472,7 @@
         <div class="setting-row">
           <div class="setting-info">
             <strong>Random reminders</strong>
-            <small>7 prompts per day, randomly spaced 8 am – 10 pm (ET). Delivered even when the app is closed.</small>
+            <small>7 prompts per day, randomly spaced 8 am – 10 pm your local time<span id="tz-label"></span>. Delivered even when the app is closed.</small>
           </div>
           <button class="pill-btn" id="s-notif-btn" onclick="toggleNotifications()">Enable</button>
         </div>
@@ -526,7 +526,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b16</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b17</span></div>
 
     </div>
   </div>
@@ -836,10 +836,22 @@ async function savePref(key,value){
 // Save the device's IANA timezone so server-side scheduling uses the user's local
 // waking hours (8am–10pm). Server falls back to Eastern if it's missing/unknown.
 async function saveTimezone(){
+  setTzLabel();
   try{
     const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
     if(tz) await savePref('tz', tz);
   }catch(e){ console.warn('[168] saveTimezone failed:', e.message); }
+}
+// Show the device's actual timezone next to the reminder copy, e.g. " (CDT)"
+function setTzLabel(){
+  const el=document.getElementById('tz-label');
+  if(!el) return;
+  try{
+    const parts=new Intl.DateTimeFormat([], {timeZoneName:'short'}).formatToParts(new Date());
+    const short=parts.find(p=>p.type==='timeZoneName')?.value;
+    const name=short||Intl.DateTimeFormat().resolvedOptions().timeZone;
+    el.textContent=name?` (${name})`:'';
+  }catch(e){ el.textContent=''; }
 }
 function updateWeekSizeUI(){
   document.getElementById('ws-168').classList.toggle('active',weekSize===168);
