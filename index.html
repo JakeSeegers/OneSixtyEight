@@ -678,18 +678,21 @@ db.auth.onAuthStateChange(async(event,session)=>{
     document.getElementById('app').classList.add('visible');
     if(currentUser.email) document.getElementById('user-email-display').textContent=currentUser.email;
     
-    // Skip stale check if query times out or fails — just proceed
     console.log('[168] Session valid, loading data...');
-    // Load data — each failure is logged but doesn't break the app
-    try { await loadPrefs(); } catch(e){ console.warn('[168] loadPrefs failed:', e.message); }
-    try { await loadCustomActs(); } catch(e){ console.warn('[168] loadCustomActs failed:', e.message); }
-    
-    rebuildActivityList();
-    buildGrid();
-    updateNotifBtn();
-    if(Notification.permission==='granted') ensurePush();
-    isAuthing=false;
-    authChangeHandling=false;
+    // IMPORTANT: defer all Supabase calls out of the onAuthStateChange callback.
+    // The auth client holds an internal lock during this callback; awaiting DB
+    // queries here deadlocks (they need the same lock to read the token) and times
+    // out. setTimeout(0) lets the callback return and release the lock first.
+    setTimeout(async ()=>{
+      try { await loadPrefs(); } catch(e){ console.warn('[168] loadPrefs failed:', e.message); }
+      try { await loadCustomActs(); } catch(e){ console.warn('[168] loadCustomActs failed:', e.message); }
+      rebuildActivityList();
+      buildGrid();
+      updateNotifBtn();
+      if(Notification.permission==='granted') ensurePush();
+      isAuthing=false;
+      authChangeHandling=false;
+    }, 0);
   } else {
     // Signed out
     authChangeHandling=true;
