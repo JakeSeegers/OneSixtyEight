@@ -1,8 +1,12 @@
-const CACHE = '168hours-v2';
-const ASSETS = ['/', '/index.html'];
+const CACHE = '168hours-v3';
+// Relative paths so caching works no matter what subpath the app is hosted under
+// (e.g. GitHub Pages project sites served from /<repo>/).
+const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  // .catch so a failed pre-cache can never block the worker from activating —
+  // an active worker is required for Web Push.
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
   self.skipWaiting();
 });
 
