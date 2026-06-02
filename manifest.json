@@ -1,17 +1,21 @@
 {
   "name": "168 Hours",
-  "short_name": "168h",
-  "description": "Track how you spend your time with random check-ins",
+  "short_name": "168 Hours",
+  "description": "Track how you actually spend your time, one random prompt at a time.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "lang": "en",
+  "dir": "ltr",
   "background_color": "#f5f0e8",
   "theme_color": "#f5f0e8",
+  "categories": ["productivity", "lifestyle", "health"],
   "icons": [
-    {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232d5a3d'/><text y='.9em' font-size='70' x='12'>⏱</text></svg>",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -1,4 +1,4 @@
-const CACHE = '168hours-v12';
+const CACHE = '168hours-v13';
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).
 const ASSETS = ['./', './index.html'];
@@ -45,8 +45,8 @@ self.addEventListener('push', e => {
   }
   e.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
-    icon: 'favicon.png',
-    badge: 'favicon.png',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
     tag: 'time-check',
     renotify: true,
     silent: false,
