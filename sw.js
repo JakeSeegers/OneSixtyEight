@@ -49,6 +49,8 @@ self.addEventListener('push', e => {
     badge: 'favicon.png',
     tag: 'time-check',
     renotify: true,
+    silent: false,
+    vibrate: [200, 100, 200],
     data: { url: data.url || '/' },
   }));
 });
