@@ -31,6 +31,12 @@
     .auth-logo{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:400;text-align:center;letter-spacing:-.02em}
     .auth-logo span{color:var(--accent)}
     .auth-tagline{text-align:center;font-size:.85rem;color:var(--ink-light);margin-top:-16px;line-height:1.5}
+    .how-it-works{display:flex;flex-direction:column;gap:13px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 16px 17px}
+    .how-it-works .hiw-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-light);text-align:center;margin-bottom:1px}
+    .hiw-item{display:flex;gap:11px;align-items:flex-start}
+    .hiw-num{flex-shrink:0;width:23px;height:23px;border-radius:50%;background:var(--accent-lt);color:var(--accent);font-size:.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:1px}
+    .hiw-item p{font-size:.82rem;color:var(--ink-light);line-height:1.45}
+    .hiw-item strong{color:var(--ink);font-weight:500}
     .auth-tabs{display:flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden}
     .auth-tab{flex:1;padding:9px;font-size:.82rem;font-weight:500;font-family:'DM Sans',sans-serif;background:none;border:none;cursor:pointer;color:var(--ink-light);transition:all .15s}
     .auth-tab.active{background:var(--accent);color:#fff}
@@ -247,6 +253,9 @@
 
     /* ── Mobile: larger, touch-friendly sizing (phones only) ── */
     @media (max-width:640px), (pointer:coarse){
+      .auth-tagline{font-size:.95rem}
+      .hiw-item p{font-size:.95rem}
+      .hiw-num{width:26px;height:26px;font-size:.85rem}
       header{padding:22px 22px 18px}
       header h1{font-size:2.1rem}
       .pill-btn{font-size:.9rem;padding:11px 16px}
@@ -309,6 +318,13 @@
   <div class="auth-card">
     <div class="auth-logo">168 <span>Hours</span></div>
     <p class="auth-tagline">Track how you actually spend your time,<br>one random prompt at a time.</p>
+
+    <div class="how-it-works">
+      <div class="hiw-title">How it works</div>
+      <div class="hiw-item"><span class="hiw-num">1</span><p><strong>Random check-ins.</strong> A few times a day, the app asks what you're doing right now.</p></div>
+      <div class="hiw-item"><span class="hiw-num">2</span><p><strong>One tap to log it.</strong> Pick an activity — takes about five seconds.</p></div>
+      <div class="hiw-item"><span class="hiw-num">3</span><p><strong>See the full picture.</strong> Watch where your 168 hours each week actually go.</p></div>
+    </div>
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign in</button>
@@ -510,7 +526,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b8</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b9</span></div>
 
     </div>
   </div>
