@@ -526,7 +526,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b15</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b16</span></div>
 
     </div>
   </div>
@@ -665,6 +665,7 @@ async function enterApp(user){
   buildGrid();
   updateNotifBtn();
   if(Notification.permission==='granted') ensurePush();
+  saveTimezone();
 }
 
 async function handleAuth(){
@@ -831,6 +832,14 @@ async function savePref(key,value){
     {onConflict:'user_id,key'}  // must match PRIMARY KEY order
   );
   if(error) console.warn('[168] savePref failed:', error.message);
+}
+// Save the device's IANA timezone so server-side scheduling uses the user's local
+// waking hours (8am–10pm). Server falls back to Eastern if it's missing/unknown.
+async function saveTimezone(){
+  try{
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if(tz) await savePref('tz', tz);
+  }catch(e){ console.warn('[168] saveTimezone failed:', e.message); }
 }
 function updateWeekSizeUI(){
   document.getElementById('ws-168').classList.toggle('active',weekSize===168);

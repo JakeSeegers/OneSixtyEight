@@ -193,10 +193,10 @@ Supabase Cron (pg_cron)
 
 | Job | Schedule | What it does |
 |---|---|---|
-| `gen-daily-prompts` | every 15 min | Calls `gen_daily_prompts()`, a `SECURITY DEFINER` plpgsql function. For each user who has at least one push subscription and no schedule yet for today, it generates 7 stratified-random `fire_at` timestamps — one per two-hour block across 8 am–10 pm — computed in the **America/New_York** timezone. |
+| `gen-daily-prompts` | every 15 min | Calls `gen_daily_prompts()`, a `SECURITY DEFINER` plpgsql function. For each user who has at least one push subscription and no schedule yet for their local day, it generates 7 stratified-random `fire_at` timestamps — one per two-hour block across 8 am–10 pm — computed in **the user's own timezone** (the IANA `tz` stored in `user_prefs`, validated against `pg_timezone_names`, falling back to `America/New_York`). |
 | `send-due-prompts` | every minute | Calls the `send-push` Edge Function with the cron secret. The function finds all `prompt_schedule` rows where `fire_at <= now()` and `sent_at IS NULL`, pushes to each of that user's subscribed devices, then sets `sent_at`. HTTP 404/410 responses from the push service cause the dead subscription to be auto-pruned from `push_subscriptions`. |
 
-> **Timezone note:** Prompt times are currently hardcoded to Eastern time (America/New_York) for all users. Per-user timezone selection is a future improvement.
+> **Timezone:** Each device reports its IANA timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) on sign-in, saved to `user_prefs.tz`. Prompts fire during the user's *local* 8 am–10 pm. DST is handled automatically by Postgres `AT TIME ZONE`. Unknown/missing zones fall back to Eastern. The zone is auto-detected (re-detected on each sign-in), not a manual setting.
 
 **`send-push` Edge Function has two modes:**
 
@@ -291,8 +291,6 @@ npx vercel --prod
 
 ### Still to do
 
-- **Per-user notification timezone** — prompt fire times are currently hardcoded to Eastern time (America/New_York). Store a timezone string in `user_prefs` and pass it into `gen_daily_prompts()`.
-
 - **168-hour wheel visualization** — a radial/polar chart showing each category's share of a 168-hour week. Chart.js has a `polarArea` chart type that works well here.
 
 - **Streak / consistency tracking** — count how many days in a row the user has logged at least one entry.
@@ -326,7 +324,7 @@ npx vercel --prod
 
 - **iOS Safari notifications:** Web Push on iOS requires the PWA to be added to the Home Screen first (iOS 16.4+). Notifications will not work in the Safari browser tab on iOS. The app shows an install hint when it detects an iOS user who hasn't installed.
 - **Two-week calendar mode:** When week size is set to 336 hours, the Calendar tab renders on a single 168-cell grid. The second week's entries are visible but the grid isn't extended to 336 cells.
-- **Notification timezone:** All prompt schedules are generated in America/New_York (Eastern). Users in other timezones will receive prompts at Eastern-equivalent local times.
+- **Notification timezone:** Auto-detected per device on sign-in and stored in `user_prefs.tz`; prompts fire in the user's local time. A user who travels has their schedule follow the device's reported timezone after the next sign-in. There's no manual timezone override UI.
 - **`manifest.json` icon:** Currently uses an inline SVG data URI which works for PWA display but may not render on all platforms' home screens. Replace with a proper PNG at `icon-192.png` and `icon-512.png` for production.
 - **Stats query fetches all rows:** `loadStats()` does `SELECT activity` with no date filter. For users with thousands of entries this is fine (the column is tiny), but add a date filter if performance becomes an issue.
 
