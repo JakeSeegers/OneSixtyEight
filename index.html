@@ -526,7 +526,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b10</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b11</span></div>
 
     </div>
   </div>
@@ -668,8 +668,7 @@ async function handleAuth(){
     // If got a session back, email confirmation is OFF — user is signed in
     // onAuthStateChange will handle showing the app
     if(data.session){
-      // Reload so the session initializes via the clean first-load path
-      window.location.reload();
+      console.log('[168] Signup succeeded with session, waiting for auth state change');
       return;
     }
     // Email confirmation is ON — show verify screen
@@ -695,10 +694,7 @@ async function handleAuth(){
       isAuthing=false;
       return;
     }
-    // Reload so the session initializes via the clean first-load path. This avoids
-    // an in-page re-auth stall (supabase-js Web Locks) that can leave data unloaded,
-    // which showed up especially on mobile after sign-out → sign-in.
-    window.location.reload();
+    // Session will be picked up by onAuthStateChange
   }
 }
 
@@ -772,7 +768,7 @@ db.auth.onAuthStateChange(async(event,session)=>{
       if(Notification.permission==='granted') ensurePush();
       isAuthing=false;
       authChangeHandling=false;
-    }, 0);
+    }, 250);
   } else {
     // Signed out
     authChangeHandling=true;
