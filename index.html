@@ -510,7 +510,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b7</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b8</span></div>
 
     </div>
   </div>
@@ -1255,19 +1255,59 @@ async function subscribePush(){
   return true;
 }
 // Silently re-affirm the subscription on load when already permitted
+// On load, only RE-AFFIRM an existing subscription — never auto-create one
+// (so turning reminders off stays off across reloads, even though the browser
+// permission remains granted).
 async function ensurePush(){
-  if(!('Notification' in window)||Notification.permission!=='granted') return;
-  try{ await subscribePush(); }catch(e){ console.warn('[168] ensurePush failed:', e.message); }
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)) return;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    if(sub&&currentUser){
+      const j=sub.toJSON();
+      await db.from('push_subscriptions').upsert(
+        { user_id:currentUser.id, endpoint:sub.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth },
+        { onConflict:'endpoint' }
+      );
+      pushSubscribed=true;
+    } else {
+      pushSubscribed=false;
+    }
+  }catch(e){ console.warn('[168] ensurePush failed:', e.message); }
+  updateNotifBtn();
+}
+// Turn reminders off on THIS device: drop the push subscription + its server row.
+// Other devices (and the per-user schedule) are unaffected.
+async function disablePush(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    if(sub){
+      const endpoint=sub.endpoint;
+      await sub.unsubscribe();
+      if(currentUser) await db.from('push_subscriptions').delete().eq('endpoint',endpoint);
+    }
+  }catch(e){ console.warn('[168] disablePush failed:', e.message); }
+  pushSubscribed=false;
+  updateNotifBtn();
 }
 function updateNotifBtn(){
-  // "Enabled" only when permission is granted AND a subscription is actually stored
+  // "On" only when permission is granted AND a subscription is actually stored
   const on=('Notification' in window)&&Notification.permission==='granted'&&pushSubscribed;
   const nb=document.getElementById('notif-btn'),sb=document.getElementById('s-notif-btn');
   if(nb){nb.textContent=on?'Reminders On':'Reminders';nb.classList.toggle('active',on);}
-  if(sb){sb.textContent=on?'Enabled':'Enable';sb.classList.toggle('active',on);}
+  if(sb){sb.textContent=on?'Turn off':'Enable';sb.classList.toggle('active',on);}
 }
 async function toggleNotifications(){
   if(!('Notification' in window)){ showToast('Notifications not supported on this browser'); return; }
+  // Already on → turn off
+  if(pushSubscribed){
+    showToast('Turning off reminders…');
+    await disablePush();
+    showToast('Reminders turned off');
+    return;
+  }
+  // Off → turn on
   if(Notification.permission==='denied'){ showToast('Notifications blocked — check browser settings'); return; }
   if(Notification.permission!=='granted'){
     const p=await Notification.requestPermission();

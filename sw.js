@@ -1,4 +1,4 @@
-const CACHE = '168hours-v7';
+const CACHE = '168hours-v8';
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).
 const ASSETS = ['./', './index.html'];
