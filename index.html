@@ -526,7 +526,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b11</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b12</span></div>
 
     </div>
   </div>
@@ -646,6 +646,27 @@ function clearAuthMsg(){
   el.textContent='';
 }
 
+// True while an explicit sign-in/sign-up is being handled by handleAuth, so the
+// onAuthStateChange callback doesn't also try to handle the same event.
+let explicitAuthInProgress=false;
+
+// Show the app and load the user's data. Safe to call outside the auth callback
+// (e.g. straight from handleAuth) where the auth lock is free — which is the
+// reliable path on mobile, unlike loading from inside onAuthStateChange.
+async function enterApp(user){
+  currentUser=user;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('verify-screen').style.display='none';
+  document.getElementById('app').classList.add('visible');
+  if(user.email) document.getElementById('user-email-display').textContent=user.email;
+  try { await loadPrefs(); } catch(e){ console.warn('[168] loadPrefs failed:', e.message); }
+  try { await loadCustomActs(); } catch(e){ console.warn('[168] loadCustomActs failed:', e.message); }
+  rebuildActivityList();
+  buildGrid();
+  updateNotifBtn();
+  if(Notification.permission==='granted') ensurePush();
+}
+
 async function handleAuth(){
   const email=document.getElementById('auth-email').value.trim();
   const password=document.getElementById('auth-password').value;
@@ -659,19 +680,20 @@ async function handleAuth(){
   btn.textContent=authMode==='signin'?'Signing in…':'Creating account…';
   clearAuthMsg();
   isAuthing=true;
+  explicitAuthInProgress=true;
 
   if(authMode==='signup'){
     const {data,error}=await db.auth.signUp({email,password});
     btn.disabled=false; btn.textContent='Create account';
-    isAuthing=false;
-    if(error){ showAuthMsg(error.message,'error'); return; }
-    // If got a session back, email confirmation is OFF — user is signed in
-    // onAuthStateChange will handle showing the app
+    if(error){ isAuthing=false; explicitAuthInProgress=false; showAuthMsg(error.message,'error'); return; }
+    // Got a session back → email confirmation is OFF → load app directly
     if(data.session){
-      console.log('[168] Signup succeeded with session, waiting for auth state change');
+      try { await enterApp(data.session.user); }
+      finally { isAuthing=false; explicitAuthInProgress=false; }
       return;
     }
     // Email confirmation is ON — show verify screen
+    isAuthing=false; explicitAuthInProgress=false;
     pendingSignupEmail=email;
     document.getElementById('auth-screen').style.display='none';
     document.getElementById('verify-email-display').textContent=email;
@@ -679,8 +701,8 @@ async function handleAuth(){
   } else {
     const {data,error}=await db.auth.signInWithPassword({email,password});
     btn.disabled=false; btn.textContent='Sign in';
-    isAuthing=false;
     if(error){
+      isAuthing=false; explicitAuthInProgress=false;
       if(error.message.toLowerCase().includes('email not confirmed')){
         pendingSignupEmail=email;
         document.getElementById('auth-screen').style.display='none';
@@ -691,10 +713,13 @@ async function handleAuth(){
       } else {
         showAuthMsg(error.message,'error');
       }
-      isAuthing=false;
       return;
     }
-    // Session will be picked up by onAuthStateChange
+    // Load data directly now that signInWithPassword has resolved (auth lock is
+    // free). Doing it here instead of from onAuthStateChange avoids the lock-timing
+    // stall that left data unloaded on mobile after sign-out → sign-in.
+    try { await enterApp(data.user); }
+    finally { isAuthing=false; explicitAuthInProgress=false; }
   }
 }
 
@@ -745,27 +770,16 @@ db.auth.onAuthStateChange(async(event,session)=>{
   if(session?.user){
     // Don't re-handle if we already have this user
     if(currentUser && currentUser.id === session.user.id) return;
-    
+    // An explicit sign-in/sign-up is being handled by handleAuth — let it own this
+    if(explicitAuthInProgress) return;
+
     authChangeHandling=true;
-    currentUser=session.user;
-    // Hide auth/verify, show app
-    document.getElementById('auth-screen').style.display='none';
-    document.getElementById('verify-screen').style.display='none';
-    document.getElementById('app').classList.add('visible');
-    if(currentUser.email) document.getElementById('user-email-display').textContent=currentUser.email;
-    
-    console.log('[168] Session valid, loading data...');
-    // IMPORTANT: defer all Supabase calls out of the onAuthStateChange callback.
-    // The auth client holds an internal lock during this callback; awaiting DB
-    // queries here deadlocks (they need the same lock to read the token) and times
-    // out. setTimeout(0) lets the callback return and release the lock first.
+    console.log('[168] Session restored, loading data...');
+    // Defer out of the auth callback: the client holds an internal lock during this
+    // callback, and awaiting DB queries here would deadlock. setTimeout releases it first.
     setTimeout(async ()=>{
-      try { await loadPrefs(); } catch(e){ console.warn('[168] loadPrefs failed:', e.message); }
-      try { await loadCustomActs(); } catch(e){ console.warn('[168] loadCustomActs failed:', e.message); }
-      rebuildActivityList();
-      buildGrid();
-      updateNotifBtn();
-      if(Notification.permission==='granted') ensurePush();
+      try { await enterApp(session.user); }
+      catch(e){ console.warn('[168] enterApp failed:', e.message); }
       isAuthing=false;
       authChangeHandling=false;
     }, 250);
