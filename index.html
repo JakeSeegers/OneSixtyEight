@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+  // First-visit onboarding: send new visitors to the intro once. Skips for anyone
+  // who's already signed in (has a Supabase auth token) or has seen it before.
+  (function(){
+    try{
+      if(localStorage.getItem('seen_intro')) return;
+      for(var i=0;i<localStorage.length;i++){ if((localStorage.key(i)||'').indexOf('auth-token')>-1){ localStorage.setItem('seen_intro','1'); return; } }
+      location.replace('intro.html');
+    }catch(e){}
+  })();
+  </script>
   <meta name="theme-color" content="#f5f0e8">
   <meta name="color-scheme" content="light">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -319,13 +330,6 @@
     <div class="auth-logo">168 <span>Hours</span></div>
     <p class="auth-tagline">Track how you actually spend your time,<br>one random prompt at a time.</p>
 
-    <div class="how-it-works">
-      <div class="hiw-title">How it works</div>
-      <div class="hiw-item"><span class="hiw-num">1</span><p><strong>Random check-ins.</strong> A few times a day, the app asks what you're doing right now.</p></div>
-      <div class="hiw-item"><span class="hiw-num">2</span><p><strong>One tap to log it.</strong> Pick an activity — takes about five seconds.</p></div>
-      <div class="hiw-item"><span class="hiw-num">3</span><p><strong>See the full picture.</strong> Watch where your 168 hours each week actually go.</p></div>
-    </div>
-
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign in</button>
       <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create account</button>
@@ -526,7 +530,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b17</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b18</span></div>
 
     </div>
   </div>
