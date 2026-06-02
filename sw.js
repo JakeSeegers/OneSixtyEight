@@ -1,4 +1,4 @@
-const CACHE = '168hours-v3';
+const CACHE = '168hours-v4';
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).
 const ASSETS = ['./', './index.html'];
@@ -18,9 +18,21 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  const req = e.request;
+  // Network-first for page navigations so code updates are picked up immediately;
+  // fall back to the cached page only when offline.
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req).then(r => {
+        const copy = r.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return r;
+      }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
+    );
+    return;
+  }
+  // Cache-first for other assets
+  e.respondWith(caches.match(req).then(r => r || fetch(req)));
 });
 
 // Web Push: show a notification when the server pushes one (works while app is closed)
