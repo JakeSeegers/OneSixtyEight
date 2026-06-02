@@ -1,9 +1,10 @@
 {
   "name": "168 Hours",
   "short_name": "168 Hours",
+  "id": "168hours-app",
   "description": "Track how you actually spend your time, one random prompt at a time.",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
