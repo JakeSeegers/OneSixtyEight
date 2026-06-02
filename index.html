@@ -247,46 +247,58 @@
 
     /* ── Mobile: larger, touch-friendly sizing (phones only) ── */
     @media (max-width:640px), (pointer:coarse){
-      header{padding:18px 20px 15px}
-      header h1{font-size:1.7rem}
-      .pill-btn{font-size:.8rem;padding:8px 14px}
-      nav{padding:0 10px}
-      nav button{padding:14px 15px;font-size:.95rem}
+      header{padding:22px 22px 18px}
+      header h1{font-size:2.1rem}
+      .pill-btn{font-size:.9rem;padding:11px 16px}
+      nav{padding:0 12px}
+      nav button{padding:18px 18px;font-size:1.1rem}
 
-      #log-section{padding:22px 18px;gap:18px}
-      .log-prompt{padding:22px 22px}
-      .log-prompt p{font-size:.82rem}
-      .log-prompt h2{font-size:1.6rem}
+      #log-section{padding:26px 18px;gap:22px}
+      .log-prompt{padding:26px 24px}
+      .log-prompt p{font-size:.9rem;letter-spacing:.09em}
+      .log-prompt h2{font-size:2.1rem}
 
-      .activity-grid{gap:11px}
-      .act-btn{padding:18px 15px;gap:12px}
-      .act-btn .act-dot{width:13px;height:13px}
-      .act-btn .act-label{font-size:1.02rem}
-      .act-btn .act-del{font-size:.85rem;top:8px;right:9px;padding:4px 7px}
-      .add-activity-btn{padding:18px 15px;font-size:1rem}
+      .activity-grid{gap:13px}
+      .act-btn{padding:24px 17px;gap:14px}
+      .act-btn .act-dot{width:16px;height:16px}
+      .act-btn .act-label{font-size:1.2rem;font-weight:600}
+      .act-btn .act-del{font-size:1.05rem;top:10px;right:11px;padding:6px 9px}
+      .add-activity-btn{padding:24px 17px;font-size:1.15rem}
 
-      .note-row label{font-size:.8rem}
-      .note-row input{padding:15px 16px;font-size:1.02rem}
-      #submit-btn{padding:18px;font-size:1.1rem}
+      .note-row label{font-size:.9rem}
+      .note-row input{padding:18px 18px;font-size:1.2rem}
+      #submit-btn{padding:23px;font-size:1.35rem;border-radius:16px}
 
       /* history / lists */
-      .history-header h3{font-size:1.25rem}
-      .log-entry{padding:16px 17px;gap:15px}
-      .log-entry .entry-activity{font-size:1rem}
-      .log-entry .entry-note{font-size:.88rem}
+      .log-entry{padding:20px 18px;gap:16px}
+      .entry-dot{width:15px;height:15px}
+      .log-entry .entry-activity{font-size:1.15rem}
+      .log-entry .entry-note{font-size:1rem}
+      .log-entry .entry-time{font-size:.85rem}
+      .history-header span{font-size:.85rem}
 
       /* stats / summary / settings headings */
-      .section-head h3,.cal-header h3,.history-header h3{font-size:1.25rem}
-      .stat-row-header span:first-child{font-size:.95rem}
-      .total-badge span:last-child{font-size:1.2rem}
+      .section-head h3,.cal-header h3,.history-header h3{font-size:1.45rem}
+      .section-head p{font-size:.92rem}
+      .stat-row{gap:7px}
+      .stat-row-header span:first-child{font-size:1.1rem}
+      .stat-row-header span:last-child{font-size:.88rem}
+      .bar-track{height:8px}
+      .total-badge{padding:17px 20px}
+      .total-badge span:first-child{font-size:.85rem}
+      .total-badge span:last-child{font-size:1.4rem}
+      .ws-table{font-size:1rem}
+      .ws-table tbody td{padding:12px 13px}
 
       /* settings rows */
-      #settings-section{padding:22px 18px}
-      .setting-info strong{font-size:1rem}
-      .setting-info small{font-size:.85rem}
-      .seg-toggle button{padding:9px 18px;font-size:.85rem}
+      #settings-section{padding:26px 18px}
+      .settings-group-title{font-size:.82rem}
+      .setting-info strong{font-size:1.15rem}
+      .setting-info small{font-size:.95rem}
+      .seg-toggle button{padding:12px 22px;font-size:.95rem}
+      .danger-btn{font-size:.95rem;padding:12px 18px}
 
-      #toast{font-size:.95rem;padding:12px 22px;bottom:32px}
+      #toast{font-size:1.05rem;padding:15px 26px;bottom:36px}
     }
   </style>
 </head>
@@ -498,7 +510,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b6</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b7</span></div>
 
     </div>
   </div>
