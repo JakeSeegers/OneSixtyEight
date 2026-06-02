@@ -1159,6 +1159,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 // is to register a push subscription and hand it to the backend.
 const VAPID_PUBLIC_KEY='BJIBC7i3B0dBIgycvKV2xVrcO4qip2C4gp7ALtwM9EaXDzmwIUYN1hoft9HGsZ4BT_P7vT0IPGtPGdIw5Ohxv_I';
 let swRegistration=null;
+let pushSubscribed=false; // true only when a subscription is actually stored server-side
 
 function urlBase64ToUint8Array(base64String){
   const padding='='.repeat((4-base64String.length%4)%4);
@@ -1174,8 +1175,9 @@ async function registerSW(){
   return swRegistration;
 }
 async function subscribePush(){
-  if(!('serviceWorker' in navigator)||!('PushManager' in window)){ return false; }
-  if(!currentUser) return false;
+  // Throw with a clear reason so the UI can show exactly why enabling failed
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)) throw new Error('Push not supported on this browser');
+  if(!currentUser){ pushSubscribed=false; return false; }
   if(!swRegistration) await registerSW();
   // pushManager.subscribe() needs an ACTIVE worker; serviceWorker.ready resolves only once one is active
   const reg=await navigator.serviceWorker.ready;
@@ -1188,7 +1190,8 @@ async function subscribePush(){
     { user_id:currentUser.id, endpoint:sub.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth },
     { onConflict:'endpoint' }
   );
-  if(error){ console.warn('[168] save subscription failed:', error.message); return false; }
+  if(error) throw new Error('Save failed: '+error.message);
+  pushSubscribed=true;
   return true;
 }
 // Silently re-affirm the subscription on load when already permitted
@@ -1196,24 +1199,34 @@ async function ensurePush(){
   if(!('Notification' in window)||Notification.permission!=='granted') return;
   try{ await subscribePush(); }catch(e){ console.warn('[168] ensurePush failed:', e.message); }
 }
-function updateNotifBtn(){ const g='Notification' in window&&Notification.permission==='granted'; const nb=document.getElementById('notif-btn'),sb=document.getElementById('s-notif-btn'); if(nb){nb.textContent=g?'Reminders On':'Reminders';nb.classList.toggle('active',g);} if(sb){sb.textContent=g?'Enabled':'Enable';sb.classList.toggle('active',g);} }
+function updateNotifBtn(){
+  // "Enabled" only when permission is granted AND a subscription is actually stored
+  const on=('Notification' in window)&&Notification.permission==='granted'&&pushSubscribed;
+  const nb=document.getElementById('notif-btn'),sb=document.getElementById('s-notif-btn');
+  if(nb){nb.textContent=on?'Reminders On':'Reminders';nb.classList.toggle('active',on);}
+  if(sb){sb.textContent=on?'Enabled':'Enable';sb.classList.toggle('active',on);}
+}
 async function toggleNotifications(){
-  if(!('Notification' in window)){ showToast('Notifications not supported'); return; }
+  if(!('Notification' in window)){ showToast('Notifications not supported on this browser'); return; }
   if(Notification.permission==='denied'){ showToast('Notifications blocked — check browser settings'); return; }
   if(Notification.permission!=='granted'){
     const p=await Notification.requestPermission();
     if(p!=='granted'){ showToast('Permission denied'); updateNotifBtn(); return; }
   }
   showToast('Enabling reminders…');
-  const ok=await subscribePush();
-  showToast(ok?'Reminders enabled!':'Could not enable reminders');
+  try{
+    await subscribePush();
+    showToast('Reminders enabled!');
+  }catch(e){
+    console.error('[168] enable failed:', e);
+    showToast('Could not enable: '+(e.message||e));
+  }
   updateNotifBtn();
 }
 async function sendTestPush(){
   if(!currentUser){ showToast('Sign in first'); return; }
   if(!('Notification' in window)||Notification.permission!=='granted'){ showToast('Enable reminders first'); return; }
-  const ok=await subscribePush();
-  if(!ok){ showToast('Enable reminders first'); return; }
+  try{ await subscribePush(); }catch(e){ showToast('Not subscribed: '+(e.message||e)); return; }
   const { data:{ session } }=await db.auth.getSession();
   if(!session){ showToast('Sign in first'); return; }
   try{
