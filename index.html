@@ -244,6 +244,50 @@
     #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     .empty-state{text-align:center;color:var(--ink-light);padding:40px 20px}
     .empty-state p{font-size:.88rem;line-height:1.6}
+
+    /* ── Mobile: larger, touch-friendly sizing (phones only) ── */
+    @media (max-width:640px){
+      header{padding:18px 20px 15px}
+      header h1{font-size:1.7rem}
+      .pill-btn{font-size:.8rem;padding:8px 14px}
+      nav{padding:0 10px}
+      nav button{padding:14px 15px;font-size:.95rem}
+
+      #log-section{padding:22px 18px;gap:18px}
+      .log-prompt{padding:22px 22px}
+      .log-prompt p{font-size:.82rem}
+      .log-prompt h2{font-size:1.6rem}
+
+      .activity-grid{gap:11px}
+      .act-btn{padding:18px 15px;gap:12px}
+      .act-btn .act-dot{width:13px;height:13px}
+      .act-btn .act-label{font-size:1.02rem}
+      .act-btn .act-del{font-size:.85rem;top:8px;right:9px;padding:4px 7px}
+      .add-activity-btn{padding:18px 15px;font-size:1rem}
+
+      .note-row label{font-size:.8rem}
+      .note-row input{padding:15px 16px;font-size:1.02rem}
+      #submit-btn{padding:18px;font-size:1.1rem}
+
+      /* history / lists */
+      .history-header h3{font-size:1.25rem}
+      .log-entry{padding:16px 17px;gap:15px}
+      .log-entry .entry-activity{font-size:1rem}
+      .log-entry .entry-note{font-size:.88rem}
+
+      /* stats / summary / settings headings */
+      .section-head h3,.cal-header h3,.history-header h3{font-size:1.25rem}
+      .stat-row-header span:first-child{font-size:.95rem}
+      .total-badge span:last-child{font-size:1.2rem}
+
+      /* settings rows */
+      #settings-section{padding:22px 18px}
+      .setting-info strong{font-size:1rem}
+      .setting-info small{font-size:.85rem}
+      .seg-toggle button{padding:9px 18px;font-size:.85rem}
+
+      #toast{font-size:.95rem;padding:12px 22px;bottom:32px}
+    }
   </style>
 </head>
 <body>
