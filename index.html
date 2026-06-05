@@ -208,6 +208,8 @@
     .legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
     .cal-grid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
     .cal-grid{display:grid;grid-template-columns:50px repeat(7,1fr);width:100%}
+    .cal-week-label{font-size:.74rem;font-weight:600;color:var(--accent);padding:8px 12px 6px;background:#faf8f4;border-top:1px solid var(--border)}
+    .cal-grid-wrap > .cal-week-label:first-child{border-top:none}
     .cal-day-hdr{background:#2d5a3d;color:#fff;font-size:.68rem;font-weight:500;text-align:center;padding:7px 2px;border-right:1px solid rgba(255,255,255,.15)}
     .cal-day-hdr:first-child{background:#1e3d2a}
     .cal-time-lbl{font-size:.6rem;color:var(--ink-light);padding:0 4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:#faf8f4;min-height:26px}
@@ -472,7 +474,7 @@
       <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
     </div>
     <div class="cal-legend" id="cal-legend"></div>
-    <div class="cal-grid-wrap"><div class="cal-grid" id="cal-grid"></div></div>
+    <div class="cal-grid-wrap" id="cal-grid-wrap"></div>
   </div>
 
   <!-- SETTINGS -->
@@ -550,7 +552,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b21</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b22</span></div>
 
     </div>
   </div>
@@ -1175,11 +1177,20 @@ function setCalMode(mode){
 function navWeek(dir){ calWeekOffset+=dir; renderCalendar(); }
 async function loadCalendar(){ await getLogs(); buildCalLegend(); if(calMode!=='avg'){ document.getElementById('week-nav').style.display='flex'; document.getElementById('prog-wrap').style.display='flex'; } renderCalendar(); }
 function buildCalLegend(){ document.getElementById('cal-legend').innerHTML=ACTIVITIES.map(a=>`<div class="legend-item"><div class="legend-dot" style="background:${a.hex}"></div>${a.label}</div>`).join(''); }
+// Mount a fresh 7-day grid into the wrap
+function mountCalGrid(wrap,data,isAvg){
+  const g=document.createElement('div'); g.className='cal-grid';
+  buildGridDOM(g,data,isAvg);
+  wrap.appendChild(g);
+}
+function nextWeekStr(iso){ const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+7); return d.toISOString().slice(0,10); }
+function fmtSingleWeek(iso){ const sun=new Date(iso+'T12:00:00'),end=new Date(sun); end.setDate(sun.getDate()+6); const o={month:'short',day:'numeric'}; return `${sun.toLocaleDateString([],o)} – ${end.toLocaleDateString([],o)}`; }
+
 async function renderCalendar(){
   const logs=await getLogs();
-  const grid=document.getElementById('cal-grid');
-  grid.innerHTML='';
-  if(calMode==='avg'){ renderAvgCalendar(logs,grid); return; }
+  const wrap=document.getElementById('cal-grid-wrap');
+  wrap.innerHTML='';
+  if(calMode==='avg'){ renderAvgCalendar(logs,wrap); return; }
   const thisSunday=currentWeekStart();
   let viewWeekStart;
   if(calMode==='this'){
@@ -1188,23 +1199,32 @@ async function renderCalendar(){
     document.getElementById('week-label').innerHTML=`${fmtWeekRange(viewWeekStart)}<span class="week-badge">Current</span>`;
   } else {
     const pastWeeks=allWeekStarts.filter(w=>w<thisSunday);
-    if(!pastWeeks.length){ grid.innerHTML='<div style="padding:28px;text-align:center;color:var(--ink-light);grid-column:1/-1">No past periods yet.</div>'; document.getElementById('nav-prev').disabled=true; document.getElementById('nav-next').disabled=true; return; }
+    if(!pastWeeks.length){ wrap.innerHTML='<div style="padding:28px;text-align:center;color:var(--ink-light)">No past periods yet.</div>'; document.getElementById('nav-prev').disabled=true; document.getElementById('nav-next').disabled=true; return; }
     const idx=Math.max(0,Math.min(pastWeeks.length-1,pastWeeks.length-1+calWeekOffset));
     calWeekOffset=idx-(pastWeeks.length-1);
     viewWeekStart=pastWeeks[idx];
     document.getElementById('nav-prev').disabled=idx===0; document.getElementById('nav-next').disabled=idx===pastWeeks.length-1;
     document.getElementById('week-label').textContent=fmtWeekRange(viewWeekStart);
   }
-  const weekLogs=logs.filter(l=>{ if(weekSize===168) return l.week_start===viewWeekStart; const nextSun=new Date(viewWeekStart+'T12:00:00'); nextSun.setDate(nextSun.getDate()+7); return l.week_start===viewWeekStart||l.week_start===nextSun.toISOString().slice(0,10); });
-  const sched={};
-  weekLogs.forEach(l=>{ const dt=new Date(l.logged_at); const key=`${dt.getDay()}_${dt.getHours()}`; if(!sched[key]) sched[key]=[]; sched[key].push(l.activity); });
-  const filled=Object.keys(sched).length;
-  document.getElementById('prog-pct').textContent=`${Math.round(filled/168*100)}%`;
-  document.getElementById('prog-fill').style.width=`${filled/168*100}%`;
-  document.getElementById('prog-left').textContent=`${filled} / 168 slots logged`;
-  buildGridDOM(grid,sched,false);
+  // 336 → two stacked 7-day grids (Week 1 on top, Week 2 below); 168 → one grid
+  const weekStarts = weekSize===336 ? [viewWeekStart, nextWeekStr(viewWeekStart)] : [viewWeekStart];
+  let filled=0; const totalSlots=weekStarts.length*168;
+  weekStarts.forEach((wkStart,i)=>{
+    const sched={};
+    logs.filter(l=>l.week_start===wkStart).forEach(l=>{ const dt=new Date(l.logged_at); const key=`${dt.getDay()}_${dt.getHours()}`; (sched[key]=sched[key]||[]).push(l.activity); });
+    filled+=Object.keys(sched).length;
+    if(weekStarts.length>1){
+      const lab=document.createElement('div'); lab.className='cal-week-label';
+      lab.textContent=`Week ${i+1} · ${fmtSingleWeek(wkStart)}`;
+      wrap.appendChild(lab);
+    }
+    mountCalGrid(wrap,sched,false);
+  });
+  document.getElementById('prog-pct').textContent=`${Math.round(filled/totalSlots*100)}%`;
+  document.getElementById('prog-fill').style.width=`${filled/totalSlots*100}%`;
+  document.getElementById('prog-left').textContent=`${filled} / ${totalSlots} slots logged`;
 }
-function renderAvgCalendar(logs,grid){
+function renderAvgCalendar(logs,wrap){
   const sc={};
   logs.forEach(l=>{ const dt=new Date(l.logged_at); const key=`${dt.getDay()}_${dt.getHours()}`; if(!sc[key]) sc[key]={}; sc[key][l.activity]=(sc[key][l.activity]||0)+1; });
   const filled=Object.keys(sc).length;
@@ -1215,7 +1235,7 @@ function renderAvgCalendar(logs,grid){
   document.getElementById('week-nav').style.display='flex';
   document.getElementById('nav-prev').disabled=true; document.getElementById('nav-next').disabled=true;
   document.getElementById('week-label').innerHTML=`Average across <strong>${allWeekStarts.length}</strong> week${allWeekStarts.length!==1?'s':''}`;
-  buildGridDOM(grid,sc,true);
+  mountCalGrid(wrap,sc,true);
 }
 function buildGridDOM(grid,data,isAvg){
   const corner=document.createElement('div'); corner.className='cal-day-hdr'; corner.textContent=''; grid.appendChild(corner);
