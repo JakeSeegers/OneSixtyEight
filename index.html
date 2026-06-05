@@ -122,6 +122,14 @@
     #submit-btn:hover{opacity:.88}
     #submit-btn:active{transform:scale(.98)}
     #submit-btn:disabled{opacity:.4;cursor:not-allowed}
+    /* undo last entry (time-limited) */
+    .undo-wrap{display:none}
+    .undo-wrap.show{display:block;animation:slideIn .2s ease}
+    .undo-btn{width:100%;background:var(--surface);border:1.5px solid #e0a89a;border-radius:var(--radius);padding:11px 14px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;gap:8px;transition:border-color .15s}
+    .undo-btn:hover{border-color:var(--warn)}
+    .undo-label{font-size:.85rem;font-weight:500;color:var(--warn);text-align:center;display:flex;align-items:center;justify-content:center;gap:7px}
+    .undo-track{height:4px;background:var(--border);border-radius:3px;overflow:hidden}
+    .undo-fill{display:block;height:100%;width:100%;background:var(--warn);border-radius:3px}
 
     /* history */
     #history-section{padding:20px;gap:11px}
@@ -288,6 +296,8 @@
       .note-row label{font-size:.9rem}
       .note-row input{padding:18px 18px;font-size:1.2rem}
       #submit-btn{padding:23px;font-size:1.35rem;border-radius:16px}
+      .undo-btn{padding:15px 16px}
+      .undo-label{font-size:1rem}
 
       /* history / lists */
       .log-entry{padding:20px 18px;gap:16px}
@@ -394,6 +404,15 @@
       <input type="text" id="note-input" placeholder="e.g. morning run, lecture, zoom call…" maxlength="120">
     </div>
     <button id="submit-btn" onclick="submitLog()" disabled>Log Activity</button>
+    <div id="undo-wrap" class="undo-wrap">
+      <button class="undo-btn" onclick="undoLast()">
+        <span class="undo-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+          Undo last entry
+        </span>
+        <span class="undo-track"><span class="undo-fill" id="undo-fill"></span></span>
+      </button>
+    </div>
   </div>
 
   <!-- HISTORY -->
@@ -530,7 +549,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b18</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b19</span></div>
 
     </div>
   </div>
@@ -605,6 +624,7 @@ const DAYS_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 // ── App state ─────────────────────────────────────────────────────────────
 let currentUser=null;
+let undoId=null, undoTimer=null;  // most-recent entry that can still be undone
 let ACTIVITIES=[...BUILTIN];
 let ACT=Object.fromEntries(BUILTIN.map(a=>[a.id,a])); // Initialize immediately
 let selectedActivity=null;
@@ -986,11 +1006,11 @@ async function submitLog(){
   const btn=document.getElementById('submit-btn');
   btn.disabled=true; btn.textContent='Saving…';
   const now=new Date();
-  const {error}=await db.from('time_logs').insert({
+  const {data,error}=await db.from('time_logs').insert({
     activity:selectedActivity, note:note||null,
     logged_at:now.toISOString(), week_start:weekStartStr(now),
     user_id:currentUser.id,
-  });
+  }).select('id').single();
   if(error){ showToast('Could not save — try again'); }
   else{
     showToast('Logged');
@@ -998,8 +1018,35 @@ async function submitLog(){
     document.getElementById('note-input').value='';
     document.querySelectorAll('.act-btn').forEach(b=>b.classList.remove('selected'));
     logCache=null;
+    if(data&&data.id) showUndo(data.id);
   }
   btn.textContent='Log Activity'; btn.disabled=false;
+}
+
+// ── Undo last entry (available for 8s) ──────────────────────────────────────
+const UNDO_MS=8000;
+function showUndo(id){
+  undoId=id;
+  const wrap=document.getElementById('undo-wrap'), fill=document.getElementById('undo-fill');
+  wrap.classList.add('show');
+  // restart the draining bar (100% → 0 over UNDO_MS)
+  fill.style.transition='none'; fill.style.width='100%';
+  void fill.offsetWidth;  // force reflow so the transition restarts
+  fill.style.transition='width '+UNDO_MS+'ms linear'; fill.style.width='0%';
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(hideUndo, UNDO_MS);
+}
+function hideUndo(){
+  clearTimeout(undoTimer); undoId=null;
+  document.getElementById('undo-wrap').classList.remove('show');
+}
+async function undoLast(){
+  if(!undoId){ hideUndo(); return; }
+  const id=undoId; hideUndo();
+  const {error}=await db.from('time_logs').delete().eq('id',id);
+  if(error){ showToast('Could not undo — try again'); return; }
+  logCache=null;
+  showToast('Entry removed');
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
