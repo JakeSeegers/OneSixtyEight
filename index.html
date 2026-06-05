@@ -550,7 +550,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b20</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b21</span></div>
 
     </div>
   </div>
@@ -1141,9 +1141,9 @@ async function loadStats(){
 // ── Summary ────────────────────────────────────────────────────────────────
 function estimateHours(logs){
   const slots={};
-  logs.forEach(l=>{ const dt=new Date(l.logged_at); const key=`${dt.toDateString()}_${dt.getHours()}`; if(!slots[key]) slots[key]=[]; slots[key].push(l.activity); });
+  logs.forEach(l=>{ const dt=new Date(l.logged_at); const key=`${dt.toDateString()}_${dt.getHours()}`; (slots[key]=slots[key]||new Set()).add(l.activity); });
   const h={};
-  Object.values(slots).forEach(acts=>{ const per=1/acts.length; acts.forEach(a=>{ h[a]=(h[a]||0)+per; }); });
+  Object.values(slots).forEach(set=>{ const per=1/set.size; set.forEach(a=>{ h[a]=(h[a]||0)+per; }); });  // equal split per distinct activity (matches calendar + export)
   return h;
 }
 async function loadSummary(){
