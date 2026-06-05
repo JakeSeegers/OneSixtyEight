@@ -268,7 +268,7 @@
     .modal-confirm:hover{opacity:.88}
 
     /* toast */
-    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:9px 18px;border-radius:30px;font-size:.83rem;opacity:0;transition:all .25s;pointer-events:none;z-index:100;white-space:nowrap}
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:9px 18px;border-radius:20px;font-size:.83rem;opacity:0;transition:all .25s;pointer-events:none;z-index:100;white-space:normal;max-width:90vw;text-align:center}
     #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     .empty-state{text-align:center;color:var(--ink-light);padding:40px 20px}
     .empty-state p{font-size:.88rem;line-height:1.6}
@@ -552,7 +552,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b22</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b23</span></div>
 
     </div>
   </div>
@@ -1267,11 +1267,18 @@ function buildGridDOM(grid,data,isAvg){
           distinct.forEach(id=>{
             const seg=document.createElement('div'); seg.className='cal-seg';
             seg.style.background=ACT[id]?.hex||'#888';
-            if(distinct.length===1){ const s=document.createElement('span'); s.className='seg-lbl'; s.textContent=ACT[id]?.label||id; seg.appendChild(s); } // full label; ellipsis trims
+            const s=document.createElement('span'); s.className='seg-lbl';
+            // full label when alone; short label per segment when split (ellipsis trims)
+            s.textContent=distinct.length===1?(ACT[id]?.label||id):(ACT[id]?.short||ACT[id]?.label||id);
+            seg.appendChild(s);
             inner.appendChild(seg);
           });
           cell.appendChild(inner);
-          cell.title=distinct.map(id=>ACT[id]?.label||id).join(' + ')+'\n'+lbl;
+          const names=distinct.map(id=>ACT[id]?.label||id).join(' + ');
+          cell.title=names+'\n'+lbl;
+          // tap to reveal (mobile has no hover)
+          cell.style.cursor='pointer';
+          cell.onclick=()=>showToast(`${DAYS_SHORT[day]} ${lbl} · ${names}`);
         }
       }
       grid.appendChild(cell);
