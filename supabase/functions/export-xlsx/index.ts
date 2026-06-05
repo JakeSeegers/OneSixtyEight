@@ -231,7 +231,10 @@ function buildHowSheet(
 async function buildWorkbook(logs: LogEntry[], customActs: CustomAct[], userEmail: string, weekSize: number, tz: string): Promise<ArrayBuffer> {
   logs.sort((a,b)=>a.logged_at.localeCompare(b.logged_at));
   const allWks=[...new Set(logs.map(l=>l.week_start))].sort();
-  const lastWk=allWks.at(-1)||""; const prevWk=allWks.at(-2)||lastWk;
+  const lastWk=allWks.at(-1)||"";
+  // Week A (Week 1) = the calendar week immediately before lastWk — empty if no data
+  // there, but never a duplicate of Week B.
+  const prevWk=lastWk ? new Date(new Date(lastWk+"T12:00:00Z").getTime()-7*864e5).toISOString().slice(0,10) : "";
 
   const weekHours:Record<string,Record<string,number>>={}
   for(const wk of allWks) weekHours[wk]=estimateHours(getWkLogs(logs,wk),tz);
