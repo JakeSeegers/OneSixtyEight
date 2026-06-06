@@ -558,7 +558,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b27</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b28</span></div>
 
     </div>
   </div>
@@ -1044,11 +1044,11 @@ function updateLogWindowUI(){
     sec.classList.remove('gated');
     const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
     banner.className='log-window open';
-    banner.textContent=`⏱ ${m}:${String(s).padStart(2,'0')} left to log this check-in`;
+    banner.textContent=`${m}:${String(s).padStart(2,'0')} left to log this check-in`;
   } else {
     sec.classList.add('gated');
     banner.className='log-window closed';
-    banner.textContent='⏳ Waiting for your next check-in — log when a reminder arrives.';
+    banner.textContent='Waiting for your next check-in — log when a reminder arrives.';
   }
 }
 // Keep the countdown live while the Log tab is visible
