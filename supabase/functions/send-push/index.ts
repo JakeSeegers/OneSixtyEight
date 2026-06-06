@@ -14,50 +14,43 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-// Rotating prompt copy — half calls-to-action, half reflective questions.
-const MESSAGES = [
+// Rotating prompt copy: one call-to-action + one reflective question per prompt.
+const CALLS = [
   "Log what you're doing right now.",
   "Take a second to record this moment.",
   "Time to track your current activity.",
-  "Record what you're up to right now.",
   "Log this hour before it passes.",
   "Tap in and log your activity.",
-  "Quick, log what you're doing.",
   "Stop and log this moment.",
-  "Drop in and record your activity.",
-  "Log your activity real quick.",
   "Log how this hour of your 168 is being spent.",
   "Record what this hour is going toward.",
   "Track this hour before it's gone.",
   "Account for this hour right now.",
-  "Make this hour count and log your activity.",
-  "Own this moment and record what you're doing.",
-  "Be honest and log your current activity.",
   "Capture this hour before it slips by.",
   "Take ownership of this moment and log it.",
   "Log this moment in your 168.",
-  "What are you doing right now?",
-  "What are you up to right now?",
-  "What are you focused on right now?",
-  "Is what you're doing right now moving you forward or pulling you back?",
-  "Does what you're doing right now feel aligned with your goals?",
-  "Would the version of you who set these goals be happy with this moment?",
-  "Is this the best use of this moment for you?",
-  "How does what you're doing right now fit with what you're working toward?",
-  "Is this how you wanted to spend this time?",
-  "What are you choosing to spend this hour on?",
-  "What does this moment look like for you?",
-  "Right now, is this where you want your time going?",
-  "What is this hour going toward?",
-  "Is this hour being spent the way you intended?",
-  "What would you want this hour to count for?",
+  "Be honest and record your current activity.",
+  "Don't let this hour go unaccounted for.",
+];
+const QUESTIONS = [
+  "Is what you're doing moving you forward or pulling you back?",
+  "Does this feel aligned with your goals?",
+  "Would the version of you who set these goals be happy right now?",
+  "Is this the best use of this hour?",
+  "How does this fit with what you're working toward?",
+  "Is this hour being spent the way you planned?",
   "Are you being intentional with this moment?",
   "How does this hour fit into your bigger picture?",
   "Is this moment working for you or against you?",
-  "What are you doing with this piece of your 168?",
-  "Is this how you want to remember spending this hour?",
+  "Does this piece of your 168 reflect your priorities?",
+  "Is this how you want this hour to count?",
+  "Is this where you want your time going?",
+  "Does this hour reflect what matters most to you?",
+  "Is this the best version of how this hour could be spent?",
+  "Will you be glad you spent this hour this way?",
 ];
-function pickMessage() { return MESSAGES[Math.floor(Math.random() * MESSAGES.length)]; }
+const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
+function pickMessage() { return `${pick(CALLS)} ${pick(QUESTIONS)}`; }
 
 let _cfg: Record<string, string> | null = null;
 async function getConfig() {
