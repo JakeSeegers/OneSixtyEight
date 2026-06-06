@@ -552,7 +552,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b24</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b25</span></div>
 
     </div>
   </div>
@@ -1390,7 +1390,7 @@ async function subscribePush(){
   );
   if(error) throw new Error('Save failed: '+error.message);
   pushSubscribed=true;
-  try{ localStorage.setItem('reminders_on','1'); }catch(_){}
+  try{ localStorage.setItem('reminders_on','1'); localStorage.setItem('push_refreshed_at',String(Date.now())); }catch(_){}
   return true;
 }
 // On load: re-affirm the subscription, and if reminders are meant to be on but the
@@ -1402,8 +1402,19 @@ async function ensurePush(){
   try{
     const reg=await navigator.serviceWorker.ready;
     let sub=await reg.pushManager.getSubscription();
-    if(!sub && wantOn){
-      sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    if(wantOn){
+      const last=parseInt(localStorage.getItem('push_refreshed_at')||'0',10);
+      const stale=Date.now()-last > 12*3600*1000;   // proactively replace a subscription older than 12h
+      if(!sub){
+        sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+        try{ localStorage.setItem('push_refreshed_at',String(Date.now())); }catch(_){}
+      } else if(stale){
+        const oldEndpoint=sub.endpoint;
+        try{ await sub.unsubscribe(); }catch(_){}
+        sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+        if(currentUser && oldEndpoint && oldEndpoint!==sub.endpoint){ try{ await db.from('push_subscriptions').delete().eq('endpoint',oldEndpoint); }catch(_){} }
+        try{ localStorage.setItem('push_refreshed_at',String(Date.now())); }catch(_){}
+      }
     }
     if(sub&&currentUser){
       const j=sub.toJSON();
