@@ -122,6 +122,11 @@
     #submit-btn:hover{opacity:.88}
     #submit-btn:active{transform:scale(.98)}
     #submit-btn:disabled{opacity:.4;cursor:not-allowed}
+    /* check-in window gating */
+    .log-window{font-size:.86rem;font-weight:500;padding:11px 14px;border-radius:10px;text-align:center;line-height:1.4}
+    .log-window.open{background:var(--accent-lt);color:var(--accent);border:1px solid #c0d9c8}
+    .log-window.closed{background:#f0ece3;color:var(--ink-light);border:1px solid var(--border)}
+    #log-section.gated .activity-grid,#log-section.gated #add-act-form-wrap,#log-section.gated .note-row,#log-section.gated #submit-btn{opacity:.4;pointer-events:none;filter:grayscale(.3)}
     /* undo last entry (time-limited) */
     .undo-wrap{display:none}
     .undo-wrap.show{display:block;animation:slideIn .2s ease}
@@ -400,6 +405,7 @@
   <!-- LOG -->
   <div id="log-section" class="section visible">
     <div class="log-prompt"><p>Right now</p><h2>What are you doing?</h2></div>
+    <div id="log-window" class="log-window" style="display:none"></div>
     <div class="activity-grid" id="activity-grid"></div>
     <div id="add-act-form-wrap"></div>
     <div class="note-row">
@@ -552,7 +558,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b25</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b26</span></div>
 
     </div>
   </div>
@@ -693,6 +699,7 @@ async function enterApp(user){
   updateNotifBtn();
   if(Notification.permission==='granted') ensurePush();
   saveTimezone();
+  refreshLogWindow(); startLogWindowTick();   // Log tab is the default view
 }
 
 async function handleAuth(){
@@ -1002,9 +1009,53 @@ function renderCustomActList(){
     </div>`).join('');
 }
 
+// ── Check-in window (only log within N minutes of a sent prompt) ────────────
+const LOG_WINDOW_MS = 5*60*1000;   // how long after a prompt fires logging stays open
+let lastPromptSent = 0;            // ms timestamp of the most recent sent prompt
+let logWindowTick = null;
+function remindersActive(){ return localStorage.getItem('reminders_on')==='1'; }
+function logWindowOpen(){
+  if(!remindersActive()) return true;            // no prompts to gate against → free logging
+  return Date.now()-lastPromptSent <= LOG_WINDOW_MS;
+}
+async function refreshLogWindow(){
+  if(remindersActive() && currentUser){
+    try{
+      const {data}=await db.from('prompt_schedule').select('sent_at')
+        .eq('user_id',currentUser.id).not('sent_at','is',null)
+        .order('sent_at',{ascending:false}).limit(1);
+      lastPromptSent = data&&data[0] ? new Date(data[0].sent_at).getTime() : 0;
+    }catch(e){ console.warn('[168] refreshLogWindow failed:', e.message); }
+  }
+  updateLogWindowUI();
+}
+function updateLogWindowUI(){
+  const sec=document.getElementById('log-section'), banner=document.getElementById('log-window');
+  if(!sec||!banner) return;
+  if(!remindersActive()){ sec.classList.remove('gated'); banner.style.display='none'; clearInterval(logWindowTick); logWindowTick=null; return; }
+  banner.style.display='block';
+  const left=lastPromptSent ? LOG_WINDOW_MS-(Date.now()-lastPromptSent) : -1;
+  if(left>0){
+    sec.classList.remove('gated');
+    const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
+    banner.className='log-window open';
+    banner.textContent=`⏱ ${m}:${String(s).padStart(2,'0')} left to log this check-in`;
+  } else {
+    sec.classList.add('gated');
+    banner.className='log-window closed';
+    banner.textContent='⏳ Waiting for your next check-in — log when a reminder arrives.';
+  }
+}
+// Keep the countdown live while the Log tab is visible
+function startLogWindowTick(){
+  clearInterval(logWindowTick);
+  logWindowTick=setInterval(updateLogWindowUI,1000);
+}
+
 // ── Submit ─────────────────────────────────────────────────────────────────
 async function submitLog(){
   if(!selectedActivity||!currentUser) return;
+  if(!logWindowOpen()){ showToast('This check-in has closed — log when the next reminder arrives'); refreshLogWindow(); return; }
   const note=document.getElementById('note-input').value.trim();
   const btn=document.getElementById('submit-btn');
   btn.disabled=true; btn.textContent='Saving…';
@@ -1058,6 +1109,7 @@ function showTab(tab){
   document.querySelectorAll('nav button').forEach((b,i)=>
     b.classList.toggle('active',['log','history','stats','summary','calendar','settings'][i]===tab));
   document.getElementById(`${tab}-section`).classList.add('visible');
+  if(tab==='log'){ refreshLogWindow(); startLogWindowTick(); } else { clearInterval(logWindowTick); logWindowTick=null; }
   if(tab==='history') loadHistory();
   if(tab==='stats')   loadStats();
   if(tab==='summary') loadSummary();
@@ -1349,6 +1401,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
   if(isIOS&&!standalone){ const h=document.getElementById('ios-hint'); if(h) h.textContent='On iPhone: tap Share → Add to Home Screen, then open it from there to enable notifications.'; }
+  // Re-check the check-in window when the app returns to the foreground (e.g. tapping a notification)
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden && currentUser && document.getElementById('log-section').classList.contains('visible')) refreshLogWindow(); });
 });
 
 // ── Notifications (Web Push) ────────────────────────────────────────────────
