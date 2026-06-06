@@ -558,7 +558,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b26</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b27</span></div>
 
     </div>
   </div>
@@ -1012,19 +1012,24 @@ function renderCustomActList(){
 // ── Check-in window (only log within N minutes of a sent prompt) ────────────
 const LOG_WINDOW_MS = 5*60*1000;   // how long after a prompt fires logging stays open
 let lastPromptSent = 0;            // ms timestamp of the most recent sent prompt
+let logGateActive = false;         // enforce the window? (true when the account has a push subscription)
 let logWindowTick = null;
-function remindersActive(){ return localStorage.getItem('reminders_on')==='1'; }
 function logWindowOpen(){
-  if(!remindersActive()) return true;            // no prompts to gate against → free logging
+  if(!logGateActive) return true;                // not in the prompt program → free logging
   return Date.now()-lastPromptSent <= LOG_WINDOW_MS;
 }
 async function refreshLogWindow(){
-  if(remindersActive() && currentUser){
+  if(currentUser){
     try{
-      const {data}=await db.from('prompt_schedule').select('sent_at')
-        .eq('user_id',currentUser.id).not('sent_at','is',null)
-        .order('sent_at',{ascending:false}).limit(1);
-      lastPromptSent = data&&data[0] ? new Date(data[0].sent_at).getTime() : 0;
+      // "In the program" = account has a push subscription (server truth, device-independent)
+      const subRes=await db.from('push_subscriptions').select('id').eq('user_id',currentUser.id).limit(1);
+      logGateActive = !!(subRes.data && subRes.data.length);
+      if(logGateActive){
+        const {data}=await db.from('prompt_schedule').select('sent_at')
+          .eq('user_id',currentUser.id).not('sent_at','is',null)
+          .order('sent_at',{ascending:false}).limit(1);
+        lastPromptSent = data&&data[0] ? new Date(data[0].sent_at).getTime() : 0;
+      }
     }catch(e){ console.warn('[168] refreshLogWindow failed:', e.message); }
   }
   updateLogWindowUI();
@@ -1032,7 +1037,7 @@ async function refreshLogWindow(){
 function updateLogWindowUI(){
   const sec=document.getElementById('log-section'), banner=document.getElementById('log-window');
   if(!sec||!banner) return;
-  if(!remindersActive()){ sec.classList.remove('gated'); banner.style.display='none'; clearInterval(logWindowTick); logWindowTick=null; return; }
+  if(!logGateActive){ sec.classList.remove('gated'); banner.style.display='none'; clearInterval(logWindowTick); logWindowTick=null; return; }
   banner.style.display='block';
   const left=lastPromptSent ? LOG_WINDOW_MS-(Date.now()-lastPromptSent) : -1;
   if(left>0){
