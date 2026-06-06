@@ -552,7 +552,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-02-b23</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b24</span></div>
 
     </div>
   </div>
@@ -1390,17 +1390,21 @@ async function subscribePush(){
   );
   if(error) throw new Error('Save failed: '+error.message);
   pushSubscribed=true;
+  try{ localStorage.setItem('reminders_on','1'); }catch(_){}
   return true;
 }
-// Silently re-affirm the subscription on load when already permitted
-// On load, only RE-AFFIRM an existing subscription — never auto-create one
-// (so turning reminders off stays off across reloads, even though the browser
-// permission remains granted).
+// On load: re-affirm the subscription, and if reminders are meant to be on but the
+// subscription expired/was dropped, recreate it so delivery resumes (push
+// subscriptions rotate/expire — this self-heals on the next app open).
 async function ensurePush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)) return;
+  const wantOn = localStorage.getItem('reminders_on')==='1' && ('Notification' in window) && Notification.permission==='granted';
   try{
     const reg=await navigator.serviceWorker.ready;
-    const sub=await reg.pushManager.getSubscription();
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub && wantOn){
+      sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    }
     if(sub&&currentUser){
       const j=sub.toJSON();
       await db.from('push_subscriptions').upsert(
@@ -1426,6 +1430,7 @@ async function disablePush(){
       if(currentUser) await db.from('push_subscriptions').delete().eq('endpoint',endpoint);
     }
   }catch(e){ console.warn('[168] disablePush failed:', e.message); }
+  try{ localStorage.removeItem('reminders_on'); }catch(_){}
   pushSubscribed=false;
   updateNotifBtn();
 }
