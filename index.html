@@ -558,7 +558,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b28</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-06-b29</span></div>
 
     </div>
   </div>
@@ -1025,14 +1025,24 @@ async function refreshLogWindow(){
       const subRes=await db.from('push_subscriptions').select('id').eq('user_id',currentUser.id).limit(1);
       logGateActive = !!(subRes.data && subRes.data.length);
       if(logGateActive){
+        let serverSent=0;
         const {data}=await db.from('prompt_schedule').select('sent_at')
           .eq('user_id',currentUser.id).not('sent_at','is',null)
           .order('sent_at',{ascending:false}).limit(1);
-        lastPromptSent = data&&data[0] ? new Date(data[0].sent_at).getTime() : 0;
+        if(data&&data[0]) serverSent=new Date(data[0].sent_at).getTime();
+        // Anchor to when THIS device actually received the push (set by sw.js), which
+        // can be minutes after the server sent it. Use whichever is more recent.
+        const local=await lastLocalPush();
+        lastPromptSent=Math.max(serverSent, local);
       }
     }catch(e){ console.warn('[168] refreshLogWindow failed:', e.message); }
   }
   updateLogWindowUI();
+}
+// Receipt time of the most recent push on THIS device (written by the service worker)
+async function lastLocalPush(){
+  try{ const c=await caches.open('168-push'); const r=await c.match('lastpush'); return r ? (parseInt(await r.text(),10)||0) : 0; }
+  catch(_){ return 0; }
 }
 function updateLogWindowUI(){
   const sec=document.getElementById('log-section'), banner=document.getElementById('log-window');
