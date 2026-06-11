@@ -1,4 +1,4 @@
-const CACHE = '168hours-v29';
+const CACHE = '168hours-v30';
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).
 const ASSETS = ['./', './index.html'];
@@ -51,6 +51,7 @@ self.addEventListener('push', e => {
       tag: 'time-check',
       renotify: true,
       silent: false,
+      requireInteraction: true,
       vibrate: [200, 100, 200],
       data: { url: data.url || '/' },
     }),
@@ -60,13 +61,15 @@ self.addEventListener('push', e => {
   ]));
 });
 
-// Open or focus the app when a notification is clicked
+// Open or focus the app when a notification is clicked.
+// Use the service worker's own scope (e.g. /OneSixtyEight/) so it opens the app,
+// not the origin root — works regardless of host/subpath.
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || '/';
+  const url = self.registration.scope;
   e.waitUntil((async () => {
     const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of all) { if ('focus' in c) return c.focus(); }
+    for (const c of all) { if (c.url.startsWith(url) && 'focus' in c) return c.focus(); }
     if (clients.openWindow) return clients.openWindow(url);
   })());
 });
