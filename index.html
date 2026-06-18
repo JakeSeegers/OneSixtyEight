@@ -230,6 +230,14 @@
     #settings-section{padding:20px;gap:16px}
     .settings-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
     .settings-group-title{padding:11px 16px;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-light);border-bottom:1px solid var(--border);background:#faf8f4}
+    .checkin-summary{padding:11px 16px;font-size:.8rem;color:var(--ink-light);border-bottom:1px solid var(--border)}
+    .checkin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:.82rem}
+    .checkin-row:last-child{border-bottom:none}
+    .checkin-when{color:var(--ink)}
+    .checkin-status{font-size:.78rem;font-weight:500;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .checkin-status .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .checkin-status.responded{color:var(--accent)}
+    .checkin-status.missed{color:var(--ink-light)}
     .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);gap:16px}
     .setting-row:last-child{border-bottom:none}
     .setting-info{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
@@ -518,6 +526,12 @@
       </div>
 
       <div class="settings-group">
+        <div class="settings-group-title">Check-in history</div>
+        <div id="checkin-summary" class="checkin-summary"></div>
+        <div id="checkin-history"></div>
+      </div>
+
+      <div class="settings-group">
         <div class="settings-group-title">Week size</div>
         <div class="setting-row">
           <div class="setting-info">
@@ -558,7 +572,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b30</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b31</span></div>
 
     </div>
   </div>
@@ -1129,7 +1143,7 @@ function showTab(tab){
   if(tab==='stats')   loadStats();
   if(tab==='summary') loadSummary();
   if(tab==='calendar') loadCalendar();
-  if(tab==='settings'){ renderCustomActList(); updateWeekSizeUI(); updateNotifBtn(); }
+  if(tab==='settings'){ renderCustomActList(); updateWeekSizeUI(); updateNotifBtn(); loadCheckinHistory(); }
 }
 
 // ── Data cache ─────────────────────────────────────────────────────────────
@@ -1154,6 +1168,42 @@ function fmtWeekRange(iso){
 }
 
 // ── History ───────────────────────────────────────────────────────────────
+// ── Check-in history (Settings): recent prompts + whether they were answered ──
+async function loadCheckinHistory(){
+  const wrap=document.getElementById('checkin-history'), sum=document.getElementById('checkin-summary');
+  if(!wrap||!currentUser) return;
+  wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">Loading…</div>';
+  sum.textContent='';
+  try{
+    const {data:prompts}=await db.from('prompt_schedule').select('sent_at')
+      .eq('user_id',currentUser.id).not('sent_at','is',null)
+      .order('sent_at',{ascending:false}).limit(25);
+    if(!prompts||!prompts.length){ wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">No check-ins sent yet.</div>'; return; }
+    const oldest=new Date(prompts[prompts.length-1].sent_at).getTime()-60000;
+    const {data:logs}=await db.from('time_logs').select('logged_at,activity')
+      .eq('user_id',currentUser.id).gte('logged_at',new Date(oldest).toISOString());
+    const RESP=15*60*1000;
+    // match each prompt to a log in [sent, min(sent+15m, next prompt)] (prompts can be close together)
+    const asc=[...prompts].reverse();
+    asc.forEach((p,i)=>{
+      const sent=new Date(p.sent_at).getTime();
+      const next=i<asc.length-1 ? new Date(asc[i+1].sent_at).getTime() : Infinity;
+      const end=Math.min(sent+RESP, next);
+      p._match=(logs||[]).find(l=>{ const t=new Date(l.logged_at).getTime(); return t>=sent-30000 && t<end; })||null;
+    });
+    const responded=prompts.filter(p=>p._match).length;
+    sum.textContent=`Responded to ${responded} of ${prompts.length} recent check-ins (${Math.round(responded/prompts.length*100)}%)`;
+    wrap.innerHTML=prompts.map(p=>{
+      const when=new Date(p.sent_at).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+      if(p._match){
+        const a=ACT[p._match.activity]||{label:p._match.activity,hex:'#888'};
+        return `<div class="checkin-row"><span class="checkin-when">${when}</span><span class="checkin-status responded"><span class="dot" style="background:${a.hex}"></span>${a.label}</span></div>`;
+      }
+      return `<div class="checkin-row"><span class="checkin-when">${when}</span><span class="checkin-status missed"><span class="dot" style="background:var(--border)"></span>No response</span></div>`;
+    }).join('');
+  }catch(e){ wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">Could not load.</div>'; console.warn('[168] checkin history failed:', e.message); }
+}
+
 async function loadHistory(){
   const list=document.getElementById('history-list');
   list.innerHTML='<div class="empty-state"><p>Loading…</p></div>';
