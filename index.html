@@ -572,7 +572,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b32</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b33</span></div>
 
     </div>
   </div>
@@ -1051,12 +1051,18 @@ async function refreshLogWindow(){
       }
     }catch(e){ console.warn('[168] refreshLogWindow failed:', e.message); }
   }
+  // If the window has already closed, clear any notification the worker left up
+  // (covers the case where the SW was terminated before its auto-dismiss fired).
+  if(logGateActive && lastPromptSent && Date.now()-lastPromptSent>LOG_WINDOW_MS) closeStaleCheckins();
   updateLogWindowUI();
 }
 // Receipt time of the most recent push on THIS device (written by the service worker)
 async function lastLocalPush(){
   try{ const c=await caches.open('168-push'); const r=await c.match('lastpush'); return r ? (parseInt(await r.text(),10)||0) : 0; }
   catch(_){ return 0; }
+}
+async function closeStaleCheckins(){
+  try{ const reg=await navigator.serviceWorker.ready; (await reg.getNotifications({tag:'time-check'})).forEach(n=>n.close()); }catch(_){}
 }
 function updateLogWindowUI(){
   const sec=document.getElementById('log-section'), banner=document.getElementById('log-window');

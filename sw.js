@@ -1,4 +1,5 @@
-const CACHE = '168hours-v32';
+const CACHE = '168hours-v33';
+const CHECKIN_WINDOW_MS = 5 * 60 * 1000; // keep in sync with LOG_WINDOW_MS in index.html
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).
 const ASSETS = ['./', './index.html'];
@@ -43,22 +44,28 @@ self.addEventListener('push', e => {
   } catch (_) {
     if (e.data) data.body = e.data.text();
   }
-  e.waitUntil(Promise.all([
-    self.registration.showNotification(data.title, {
+  e.waitUntil((async () => {
+    await self.registration.showNotification(data.title, {
       body: data.body,
       icon: 'icon-192.png',
       badge: 'icon-192.png',
       tag: 'time-check',
       renotify: true,
       silent: false,
-      requireInteraction: true,
+      requireInteraction: true, // stay on screen until acted on…
       vibrate: [200, 100, 200],
       data: { url: data.url || '/' },
-    }),
+    });
     // Record receipt time on THIS device so the log window opens from when the
     // notification actually arrived here (delivery latency varies per device).
-    caches.open('168-push').then(c => c.put('lastpush', new Response(String(Date.now())))).catch(() => {}),
-  ]));
+    try { const c = await caches.open('168-push'); await c.put('lastpush', new Response(String(Date.now()))); } catch (_) {}
+    // …but only until the check-in window closes, then auto-dismiss. Best-effort:
+    // the browser may terminate the worker before this fires, in which case the
+    // page clears it on next open (closeStaleCheckins in index.html).
+    await new Promise(r => setTimeout(r, CHECKIN_WINDOW_MS));
+    const notes = await self.registration.getNotifications({ tag: 'time-check' });
+    notes.forEach(n => n.close());
+  })());
 });
 
 // Open or focus the app when a notification is clicked.
