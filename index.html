@@ -238,6 +238,12 @@
     .checkin-status .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
     .checkin-status.responded{color:var(--accent)}
     .checkin-status.missed{color:var(--ink-light)}
+    .settings-group-title.checkin-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+    .checkin-toggle .chevron{transition:transform .15s;font-size:.85rem}
+    .checkin-toggle.open .chevron{transform:rotate(90deg)}
+    .checkin-showall{padding:11px 16px;text-align:center;border-top:1px solid var(--border)}
+    .checkin-showall:empty{display:none}
+    .checkin-showall button{background:none;border:none;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer}
     .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);gap:16px}
     .setting-row:last-child{border-bottom:none}
     .setting-info{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
@@ -525,10 +531,15 @@
         </div>
       </div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">Check-in history</div>
-        <div id="checkin-summary" class="checkin-summary"></div>
-        <div id="checkin-history"></div>
+      <div class="settings-group" id="checkin-group">
+        <div class="settings-group-title checkin-toggle" onclick="toggleCheckinHistory()">
+          <span>Check-in history</span><span class="chevron" id="checkin-chevron">&#9656;</span>
+        </div>
+        <div id="checkin-body" style="display:none">
+          <div id="checkin-summary" class="checkin-summary"></div>
+          <div id="checkin-history"></div>
+          <div id="checkin-showall" class="checkin-showall"></div>
+        </div>
       </div>
 
       <div class="settings-group">
@@ -572,7 +583,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b33</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b34</span></div>
 
     </div>
   </div>
@@ -1149,7 +1160,7 @@ function showTab(tab){
   if(tab==='stats')   loadStats();
   if(tab==='summary') loadSummary();
   if(tab==='calendar') loadCalendar();
-  if(tab==='settings'){ renderCustomActList(); updateWeekSizeUI(); updateNotifBtn(); loadCheckinHistory(); }
+  if(tab==='settings'){ renderCustomActList(); updateWeekSizeUI(); updateNotifBtn(); }
 }
 
 // ── Data cache ─────────────────────────────────────────────────────────────
@@ -1174,16 +1185,24 @@ function fmtWeekRange(iso){
 }
 
 // ── History ───────────────────────────────────────────────────────────────
-// ── Check-in history (Settings): recent prompts + whether they were answered ──
+// ── Check-in history (Settings): collapsible; last 7 days, "Show all" for older ──
+let checkinPrompts=[];     // fetched prompts (with ._match), newest first
+let checkinShowAll=false;
+function toggleCheckinHistory(){
+  const body=document.getElementById('checkin-body'), title=document.querySelector('.checkin-toggle');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  title.classList.toggle('open',open);
+  if(open) loadCheckinHistory();
+}
 async function loadCheckinHistory(){
-  const wrap=document.getElementById('checkin-history'), sum=document.getElementById('checkin-summary');
+  const wrap=document.getElementById('checkin-history'), sum=document.getElementById('checkin-summary'), sa=document.getElementById('checkin-showall');
   if(!wrap||!currentUser) return;
-  wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">Loading…</div>';
-  sum.textContent='';
+  wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">Loading…</div>'; sum.textContent=''; sa.innerHTML='';
   try{
     const {data:prompts}=await db.from('prompt_schedule').select('sent_at')
       .eq('user_id',currentUser.id).not('sent_at','is',null)
-      .order('sent_at',{ascending:false}).limit(25);
+      .order('sent_at',{ascending:false}).limit(200);
     if(!prompts||!prompts.length){ wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">No check-ins sent yet.</div>'; return; }
     const oldest=new Date(prompts[prompts.length-1].sent_at).getTime()-60000;
     const {data:logs}=await db.from('time_logs').select('logged_at,activity')
@@ -1197,18 +1216,30 @@ async function loadCheckinHistory(){
       const end=Math.min(sent+RESP, next);
       p._match=(logs||[]).find(l=>{ const t=new Date(l.logged_at).getTime(); return t>=sent-30000 && t<end; })||null;
     });
-    const responded=prompts.filter(p=>p._match).length;
-    sum.textContent=`Responded to ${responded} of ${prompts.length} recent check-ins (${Math.round(responded/prompts.length*100)}%)`;
-    wrap.innerHTML=prompts.map(p=>{
-      const when=new Date(p.sent_at).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-      if(p._match){
-        const a=ACT[p._match.activity]||{label:p._match.activity,hex:'#888'};
-        return `<div class="checkin-row"><span class="checkin-when">${when}</span><span class="checkin-status responded"><span class="dot" style="background:${a.hex}"></span>${a.label}</span></div>`;
-      }
-      return `<div class="checkin-row"><span class="checkin-when">${when}</span><span class="checkin-status missed"><span class="dot" style="background:var(--border)"></span>No response</span></div>`;
-    }).join('');
+    checkinPrompts=prompts; checkinShowAll=false;
+    renderCheckinList();
   }catch(e){ wrap.innerHTML='<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">Could not load.</div>'; console.warn('[168] checkin history failed:', e.message); }
 }
+function checkinRowHtml(p){
+  const when=new Date(p.sent_at).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  if(p._match){
+    const a=ACT[p._match.activity]||{label:p._match.activity,hex:'#888'};
+    return `<div class="checkin-row"><span class="checkin-when">${when}</span><span class="checkin-status responded"><span class="dot" style="background:${a.hex}"></span>${a.label}</span></div>`;
+  }
+  return `<div class="checkin-row"><span class="checkin-when">${when}</span><span class="checkin-status missed"><span class="dot" style="background:var(--border)"></span>No response</span></div>`;
+}
+function renderCheckinList(){
+  const wrap=document.getElementById('checkin-history'), sum=document.getElementById('checkin-summary'), sa=document.getElementById('checkin-showall');
+  const cutoff=Date.now()-7*864e5;
+  const week=checkinPrompts.filter(p=>new Date(p.sent_at).getTime()>=cutoff);
+  const responded=week.filter(p=>p._match).length;
+  sum.textContent = week.length ? `Responded to ${responded} of ${week.length} check-ins this week (${Math.round(responded/week.length*100)}%)` : 'No check-ins in the last 7 days.';
+  const visible = checkinShowAll ? checkinPrompts : week;
+  wrap.innerHTML = visible.length ? visible.map(checkinRowHtml).join('') : '<div style="padding:14px 16px;color:var(--ink-light);font-size:.82rem">Nothing in the last 7 days — tap “Show all”.</div>';
+  const older=checkinPrompts.length-week.length;
+  sa.innerHTML = older>0 ? `<button onclick="toggleCheckinShowAll()">${checkinShowAll?'Show last 7 days':`Show all (${older} earlier)`}</button>` : '';
+}
+function toggleCheckinShowAll(){ checkinShowAll=!checkinShowAll; renderCheckinList(); }
 
 async function loadHistory(){
   const list=document.getElementById('history-list');
