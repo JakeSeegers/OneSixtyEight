@@ -572,7 +572,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b31</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b32</span></div>
 
     </div>
   </div>
@@ -1460,6 +1460,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Enter key in auth form
   document.getElementById('auth-password').addEventListener('keydown',e=>{ if(e.key==='Enter') handleAuth(); });
   document.getElementById('auth-email').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('auth-password').focus(); });
+  // Auto-reload an already-open page when a new service worker takes over, so a
+  // left-open PWA jumps to the latest version (skips the harmless first-install case).
+  if('serviceWorker' in navigator){
+    const hadController=!!navigator.serviceWorker.controller;
+    let swRefreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(swRefreshing||!hadController) return; swRefreshing=true; location.reload();
+    });
+  }
   // Register service worker (required for Web Push), then re-affirm subscription
   registerSW().then(()=>ensurePush());
   // iOS requires the PWA to be installed before Web Push works
