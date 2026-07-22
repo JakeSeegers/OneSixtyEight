@@ -1,4 +1,4 @@
-const CACHE = '168hours-v34';
+const CACHE = '168hours-v35';
 const CHECKIN_WINDOW_MS = 5 * 60 * 1000; // keep in sync with LOG_WINDOW_MS in index.html
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).
@@ -56,9 +56,16 @@ self.addEventListener('push', e => {
       vibrate: [200, 100, 200],
       data: { url: data.url || '/' },
     });
-    // Record receipt time on THIS device so the log window opens from when the
-    // notification actually arrived here (delivery latency varies per device).
+    // Record receipt time on THIS device as a fallback anchor (the page prefers
+    // the server send time so all devices stay in sync).
     try { const c = await caches.open('168-push'); await c.put('lastpush', new Response(String(Date.now()))); } catch (_) {}
+    // Wake any already-open page so it opens its check-in window immediately,
+    // in step with the server — otherwise a foregrounded device wouldn't notice
+    // the new prompt until it was backgrounded and refocused.
+    try {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of clients) c.postMessage({ type: 'checkin-fired' });
+    } catch (_) {}
     // …but only until the check-in window closes, then auto-dismiss. Best-effort:
     // the browser may terminate the worker before this fires, in which case the
     // page clears it on next open (closeStaleCheckins in index.html).

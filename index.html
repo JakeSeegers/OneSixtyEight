@@ -583,7 +583,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-06-09-b34</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-07-22-b35</span></div>
 
     </div>
   </div>
@@ -1055,10 +1055,13 @@ async function refreshLogWindow(){
           .eq('user_id',currentUser.id).not('sent_at','is',null)
           .order('sent_at',{ascending:false}).limit(1);
         if(data&&data[0]) serverSent=new Date(data[0].sent_at).getTime();
-        // Anchor to when THIS device actually received the push (set by sw.js), which
-        // can be minutes after the server sent it. Use whichever is more recent.
+        // Anchor the window to the server send time (identical on every device)
+        // so the check-in closes at the same wall-clock moment everywhere,
+        // regardless of per-device push delivery latency. Fall back to this
+        // device's local push receipt only if the server timestamp is missing
+        // (e.g. a transient query error).
         const local=await lastLocalPush();
-        lastPromptSent=Math.max(serverSent, local);
+        lastPromptSent = serverSent || local;
       }
     }catch(e){ console.warn('[168] refreshLogWindow failed:', e.message); }
   }
@@ -1514,6 +1517,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(isIOS&&!standalone){ const h=document.getElementById('ios-hint'); if(h) h.textContent='On iPhone: tap Share → Add to Home Screen, then open it from there to enable notifications.'; }
   // Re-check the check-in window when the app returns to the foreground (e.g. tapping a notification)
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden && currentUser && document.getElementById('log-section').classList.contains('visible')) refreshLogWindow(); });
+  // Open the window the instant the service worker reports a prompt fired, so an
+  // already-open device syncs with the server (and every other device) right away.
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message',(e)=>{ if(e.data&&e.data.type==='checkin-fired'&&currentUser) refreshLogWindow(); });
+  }
 });
 
 // ── Notifications (Web Push) ────────────────────────────────────────────────
