@@ -82,7 +82,7 @@ async function sendToUser(uid: string) {
       const subscriber = await appServer.subscribe({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } });
       await subscriber.pushTextMessage(
         JSON.stringify({ title: "168 Hours", body, url: "/" }),
-        { urgency: "high", ttl: 1800 }, // high priority so Doze doesn't drop it; 30-min TTL (a "right now" prompt shouldn't arrive hours late)
+        { urgency: "high", ttl: 300 }, // high priority so Doze doesn't drop it; 5-min TTL matches the log window (LOG_WINDOW_MS) so a device that wakes after the window never shows a stale, already-closed prompt
       );
       sent++;
     } catch (e: any) {
