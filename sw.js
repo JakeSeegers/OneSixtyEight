@@ -1,4 +1,4 @@
-const CACHE = '168hours-v35';
+const CACHE = '168hours-v36';
 const CHECKIN_WINDOW_MS = 5 * 60 * 1000; // keep in sync with LOG_WINDOW_MS in index.html
 // Relative paths so caching works no matter what subpath the app is hosted under
 // (e.g. GitHub Pages project sites served from /<repo>/).

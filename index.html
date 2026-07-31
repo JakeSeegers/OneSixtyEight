@@ -583,7 +583,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-07-22-b35</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-07-31-b36</span></div>
 
     </div>
   </div>
@@ -1055,13 +1055,20 @@ async function refreshLogWindow(){
           .eq('user_id',currentUser.id).not('sent_at','is',null)
           .order('sent_at',{ascending:false}).limit(1);
         if(data&&data[0]) serverSent=new Date(data[0].sent_at).getTime();
-        // Anchor the window to the server send time (identical on every device)
-        // so the check-in closes at the same wall-clock moment everywhere,
-        // regardless of per-device push delivery latency. Fall back to this
-        // device's local push receipt only if the server timestamp is missing
-        // (e.g. a transient query error).
+        // Hardening: every app-open re-derives the window from BOTH the server's
+        // send time and this device's own push-receipt time, and trusts whichever
+        // is later. Using server time alone (as a prior build did, for cross-device
+        // countdown parity) locks people out the moment delivery to their device
+        // lags behind the server — a slow carrier/Doze/backgrounded-browser can
+        // easily eat most of the 5-minute window before the notification ever
+        // reaches the screen, so by the time they tap it and the app boots, the
+        // server clock already reads "closed" even though they responded the
+        // instant they saw it. Anchoring to max(server, local) guarantees this
+        // device always gets its own fair 5 minutes from when it was actually
+        // pinged, at the cost of the countdown occasionally reading differently
+        // on a device that received the push late.
         const local=await lastLocalPush();
-        lastPromptSent = serverSent || local;
+        lastPromptSent = Math.max(serverSent, local);
       }
     }catch(e){ console.warn('[168] refreshLogWindow failed:', e.message); }
   }
