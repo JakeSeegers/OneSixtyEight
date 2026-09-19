@@ -807,7 +807,9 @@ function updateThemeSegUI(){
     if(b) b.classList.toggle('active',theme===t);
   });
 }
+let themeUserSet=false; // guards against a slower in-flight loadPrefs() fetch reverting a click that happened after it started
 async function setTheme(t){
+  themeUserSet=true;
   applyTheme(t);
   updateThemeSegUI();
   if(currentUser) await savePref('theme',t);
@@ -944,7 +946,7 @@ async function signOut(){
   if(signOutGuard) return;
   signOutGuard=true;
   try { await db.auth.signOut(); } catch(e) { console.warn('[168] signOut call failed:', e.message); }
-  currentUser=null; logCache=null; customActs=[];
+  currentUser=null; logCache=null; customActs=[]; themeUserSet=false;
   ACTIVITIES=[...BUILTIN];
   ACT=Object.fromEntries(ACTIVITIES.map(a=>[a.id,a]));
   document.getElementById('app').classList.remove('visible');
@@ -996,6 +998,7 @@ db.auth.onAuthStateChange(async(event,session)=>{
     authMode='signin';
     currentUser=null;
     logCache=null;
+    themeUserSet=false;
     isAuthing=false;
     authChangeHandling=false;
   }
@@ -1031,7 +1034,7 @@ async function loadPrefs(){
         const v=r.value.split(',').map(n=>parseInt(n)).filter(n=>!isNaN(n)&&n>=0&&n<=6);
         if(v.length) promptDays=new Set(v);
       }
-      else if(r.key==='theme'){ if(['light','dark','system'].includes(r.value)) applyTheme(r.value); }
+      else if(r.key==='theme'){ if(!themeUserSet && ['light','dark','system'].includes(r.value)) applyTheme(r.value); }
     });
   }
   updateWeekSizeUI();
