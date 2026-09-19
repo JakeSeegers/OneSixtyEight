@@ -631,9 +631,6 @@
             <button id="th-punk" onclick="setTheme('punk')">Punk</button>
           </div>
         </div>
-        <div class="setting-row" style="border-bottom:none">
-          <small id="theme-debug" style="font-family:monospace;color:var(--ink-light);word-break:break-all"></small>
-        </div>
       </div>
 
       <div class="settings-group">
@@ -724,7 +721,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b42</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b43</span></div>
 
     </div>
   </div>
@@ -848,7 +845,6 @@ function updateChartTheme(){
   Chart.defaults.borderColor=cssVar('--border');
 }
 function applyTheme(t){
-  console.log('[168-theme] applyTheme called with:',t,'| stack:',new Error().stack?.split('\n').slice(1,4).join(' <- '));
   theme=EXPLICIT_THEMES.includes(t)?t:'system';
   try{ localStorage.setItem('theme',theme); }catch(e){}
   const root=document.documentElement;
@@ -868,11 +864,6 @@ function updateThemeSegUI(){
     const b=document.getElementById('th-'+t);
     if(b) b.classList.toggle('active',theme===t);
   });
-  const dbg=document.getElementById('theme-debug');
-  if(dbg){
-    const root=document.documentElement;
-    dbg.textContent=`theme=${theme} | data-theme=${root.getAttribute('data-theme')} | resolved=${resolvedTheme()} | --bg=${cssVar('--bg')} | explicit=${isThemeExplicit()} | ${new Date().toLocaleTimeString()}`;
-  }
 }
 // Persisted (not just in-memory) so an explicit choice survives a page reload that
 // lands between the click and its savePref() finishing — e.g. the service-worker
@@ -1108,10 +1099,7 @@ async function loadPrefs(){
         const v=r.value.split(',').map(n=>parseInt(n)).filter(n=>!isNaN(n)&&n>=0&&n<=6);
         if(v.length) promptDays=new Set(v);
       }
-      else if(r.key==='theme'){
-        console.log('[168-theme] loadPrefs saw server theme:',r.value,'| isThemeExplicit:',isThemeExplicit(),'| will apply:',!isThemeExplicit());
-        if(!isThemeExplicit() && ['light','dark','punk','system'].includes(r.value)) applyTheme(r.value);
-      }
+      else if(r.key==='theme'){ if(!isThemeExplicit() && ['light','dark','punk','system'].includes(r.value)) applyTheme(r.value); }
     });
   }
   updateWeekSizeUI();
