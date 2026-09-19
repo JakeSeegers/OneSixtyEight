@@ -18,17 +18,22 @@
   <meta name="color-scheme" content="light">
   <script>
   // Apply the saved theme (or the OS preference) before first paint, so there's
-  // no flash of the wrong theme. The dark bg hex here must match --bg under
-  // :root[data-theme="dark"] in <style> below — it's duplicated because CSS
-  // variables aren't computable yet this early.
+  // no flash of the wrong theme. The bg hexes here must match --bg under the
+  // matching :root[data-theme=...] rules in <style> below — duplicated because
+  // CSS variables aren't computable yet this early.
   (function(){
     try{
       var t=localStorage.getItem('theme');
-      if(t==='light'||t==='dark') document.documentElement.setAttribute('data-theme',t);
-      var dark = t==='dark' || (t!=='light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-      if(dark){
-        var tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content','#17161a');
-        var cs=document.querySelector('meta[name="color-scheme"]'); if(cs) cs.setAttribute('content','dark');
+      if(t==='light'||t==='dark'||t==='punk') document.documentElement.setAttribute('data-theme',t);
+      if(t==='punk'){
+        var tc0=document.querySelector('meta[name="theme-color"]'); if(tc0) tc0.setAttribute('content','#0a0a0a');
+        var cs0=document.querySelector('meta[name="color-scheme"]'); if(cs0) cs0.setAttribute('content','dark');
+      } else {
+        var dark = t==='dark' || (t!=='light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        if(dark){
+          var tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content','#17161a');
+          var cs=document.querySelector('meta[name="color-scheme"]'); if(cs) cs.setAttribute('content','dark');
+        }
       }
     }catch(e){}
   })();
@@ -40,7 +45,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&family=Archivo+Black&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -53,6 +58,7 @@
       --danger:#b84040;--danger-fill:#b84040;--danger-bg:#fdf0f0;--danger-border:#e0a09a;--danger-border-soft:#f0c0c0;
       --muted:#f0ece3;--stripe:#ede8de;
       --border:#e0d9cc;--radius:14px;--shadow:0 2px 16px rgba(0,0,0,.07);
+      --font-display:'Playfair Display',serif;
     }
     /* An explicit "Light" choice must win even when the OS is dark. The vars are
        already correctly excluded from the dark overrides below by :not([data-theme=
@@ -88,13 +94,48 @@
       --muted:#2a2723;--stripe:#322e28;
       --border:#3a362f;--shadow:0 2px 16px rgba(0,0,0,.4);
     }
+    /* Punk: a deliberate 4th look, not an OS-driven one — always this, however you got
+       here. Same fill/text color-split rule as dark mode (accent vs accent-fg, danger vs
+       danger-fill): the neon tones are for text/badges, the deeper tones are for solid
+       fills that still need white text to read. Flat borders and a hard offset shadow
+       stand in for the soft blurred-shadow "calm app" look everywhere else. */
+    :root[data-theme="punk"]{
+      color-scheme:dark;
+      --bg:#0a0a0a;--surface:#141414;--surface-2:#1c1c1c;--ink:#f5f2ea;--ink-light:#8f8a80;
+      --accent:#b3123a;--accent-fg:#ff3366;--accent-lt:#2a0a12;--accent-2:#a8420f;--accent-dark:#3d0a14;
+      --accent-border-soft:#5c1626;--accent-glow:rgba(255,51,102,.35);
+      --warn:#d4ff00;--warn-lt:#242200;
+      --danger:#ff1a1a;--danger-fill:#8f0e1f;--danger-bg:#2a0508;--danger-border:#6b1520;--danger-border-soft:#4a1015;
+      --muted:#1c1c1c;--stripe:#262626;
+      --border:#4a4a4a;--radius:0px;--shadow:4px 4px 0 var(--accent-fg);
+      --font-display:'Archivo Black',sans-serif;
+    }
+    [data-theme="punk"] header h1{text-transform:uppercase;letter-spacing:-.03em;transform:skewX(-4deg)}
+    [data-theme="punk"] nav button.active{border-bottom-width:4px}
+    [data-theme="punk"] .settings-group-title{letter-spacing:.12em}
+    [data-theme="punk"] #toast{border:2px solid var(--accent-fg)}
+    /* --radius only reaches the handful of rules that already use var(--radius) (the
+       card containers) — most buttons/inputs/pills hardcode their own px radius, so
+       flatten those explicitly. Anything round on purpose (dots, avatars, swatches)
+       is left out on purpose. */
+    [data-theme="punk"] .pill-btn,[data-theme="punk"] .seg-toggle,[data-theme="punk"] .auth-tabs,
+    [data-theme="punk"] .auth-card,[data-theme="punk"] .verify-card,[data-theme="punk"] .how-it-works,
+    [data-theme="punk"] .auth-form input,[data-theme="punk"] .auth-submit,[data-theme="punk"] .auth-msg,
+    [data-theme="punk"] .verify-resend,[data-theme="punk"] .log-window,[data-theme="punk"] .total-badge,
+    [data-theme="punk"] .dl-btn,[data-theme="punk"] .week-mode-bar,[data-theme="punk"] .week-nav,
+    [data-theme="punk"] .nav-arrow,[data-theme="punk"] .week-badge,[data-theme="punk"] .prog-wrap,
+    [data-theme="punk"] .cal-legend,[data-theme="punk"] .prompt-window-fields select,
+    [data-theme="punk"] .danger-btn,[data-theme="punk"] .add-act-form input[type=text],
+    [data-theme="punk"] .form-btn-save,[data-theme="punk"] .form-btn-cancel,[data-theme="punk"] .modal,
+    [data-theme="punk"] .modal-cancel,[data-theme="punk"] .modal-confirm,[data-theme="punk"] #toast
+    { border-radius:0; }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
 
     /* ── auth screens ── */
     #auth-screen{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
     .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px 32px;width:100%;max-width:380px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:24px}
-    .auth-logo{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:400;text-align:center;letter-spacing:-.02em}
+    .auth-logo{font-family:var(--font-display);font-size:1.9rem;font-weight:400;text-align:center;letter-spacing:-.02em}
     .auth-logo span{color:var(--accent-fg)}
     .auth-tagline{text-align:center;font-size:.85rem;color:var(--ink-light);margin-top:-16px;line-height:1.5}
     .how-it-works{display:flex;flex-direction:column;gap:13px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 16px 17px}
@@ -122,8 +163,8 @@
     /* verify screen */
     #verify-screen{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
     .verify-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px 32px;width:100%;max-width:380px;box-shadow:var(--shadow);text-align:center;display:flex;flex-direction:column;gap:16px}
-    .verify-icon{font-size:2.8rem;font-family:'Playfair Display',serif;color:var(--accent-fg)}
-    .verify-card h2{font-family:'Playfair Display',serif;font-weight:400;font-size:1.3rem}
+    .verify-icon{font-size:2.8rem;font-family:var(--font-display);color:var(--accent-fg)}
+    .verify-card h2{font-family:var(--font-display);font-weight:400;font-size:1.3rem}
     .verify-card p{font-size:.85rem;color:var(--ink-light);line-height:1.6}
     .verify-card p strong{color:var(--ink)}
     .verify-resend{background:none;border:1.5px solid var(--border);border-radius:10px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:.82rem;color:var(--ink-light);cursor:pointer;transition:all .15s}
@@ -136,7 +177,7 @@
 
     /* header */
     header{padding:16px 20px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:20;flex-shrink:0}
-    header h1{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:400;letter-spacing:-.02em}
+    header h1{font-family:var(--font-display);font-size:1.4rem;font-weight:400;letter-spacing:-.02em}
     header h1 span{color:var(--accent-fg)}
     .header-btns{display:flex;gap:8px;align-items:center}
     .pill-btn{font-size:.72rem;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-light);background:none;border:1px solid var(--border);border-radius:20px;padding:5px 11px;cursor:pointer;transition:all .15s;white-space:nowrap}
@@ -157,7 +198,7 @@
     #log-section{padding:20px;gap:16px}
     .log-prompt{background:var(--surface);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);border:1px solid var(--border)}
     .log-prompt p{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-light);margin-bottom:5px}
-    .log-prompt h2{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:400}
+    .log-prompt h2{font-family:var(--font-display);font-size:1.2rem;font-weight:400}
     .activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     .act-btn{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 11px;cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;position:relative}
     .act-btn:hover{border-color:var(--accent);background:var(--accent-lt)}
@@ -194,7 +235,7 @@
     /* history */
     #history-section{padding:20px;gap:11px}
     .history-header{display:flex;justify-content:space-between;align-items:center}
-    .history-header h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.05rem}
+    .history-header h3{font-family:var(--font-display);font-weight:400;font-size:1.05rem}
     .history-header span{font-size:.72rem;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em}
     .log-entry{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;display:flex;align-items:center;gap:13px;animation:slideIn .2s ease}
     @keyframes slideIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
@@ -206,7 +247,7 @@
 
     /* stats */
     #stats-section{padding:20px;gap:18px}
-    .section-head h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.05rem;margin-bottom:3px}
+    .section-head h3{font-family:var(--font-display);font-weight:400;font-size:1.05rem;margin-bottom:3px}
     .section-head p{font-size:.77rem;color:var(--ink-light)}
     .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
     .chart-card canvas{max-height:250px}
@@ -229,7 +270,7 @@
     .dl-btn:hover{opacity:.87}
     .dl-btn:disabled{opacity:.45;cursor:not-allowed}
     .worksheet-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
-    .worksheet-title{background:var(--accent);color:#fff;font-family:'Playfair Display',serif;font-weight:400;font-size:.98rem;padding:13px 17px;text-align:center}
+    .worksheet-title{background:var(--accent);color:#fff;font-family:var(--font-display);font-weight:400;font-size:.98rem;padding:13px 17px;text-align:center}
     .worksheet-subtitle{background:var(--accent-2);color:#fff;font-size:.75rem;padding:5px 17px;text-align:center;letter-spacing:.04em;text-transform:uppercase}
     .ws-table{width:100%;border-collapse:collapse;font-size:.8rem}
     .ws-table thead th{background:var(--accent);color:#fff;padding:7px 11px;text-align:left;font-weight:500;font-size:.75rem;border-bottom:1px solid rgba(255,255,255,.15)}
@@ -247,7 +288,7 @@
     /* calendar */
     #calendar-section{padding:16px;gap:12px}
     .cal-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px}
-    .cal-header h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.05rem}
+    .cal-header h3{font-family:var(--font-display);font-weight:400;font-size:1.05rem}
     .cal-header p{font-size:.75rem;color:var(--ink-light);margin-top:2px}
     .week-mode-bar{display:flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden}
     .wm-btn{padding:6px 12px;font-size:.72rem;font-weight:500;font-family:'DM Sans',sans-serif;background:none;border:none;cursor:pointer;color:var(--ink-light);transition:all .15s}
@@ -304,7 +345,8 @@
     .setting-info{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
     .setting-info strong{font-size:.88rem;font-weight:500}
     .setting-info small{font-size:.75rem;color:var(--ink-light);line-height:1.4}
-    .seg-toggle{display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
+    .seg-toggle{display:flex;flex-wrap:wrap;border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
+    .seg-toggle button{flex:1 1 auto}
     .seg-toggle button{padding:6px 14px;font-size:.75rem;font-weight:500;font-family:'DM Sans',sans-serif;background:none;border:none;cursor:pointer;color:var(--ink-light);transition:all .15s}
     .seg-toggle button.active{background:var(--accent);color:#fff}
     .prompt-window-row{flex-direction:column;align-items:stretch;gap:10px}
@@ -340,7 +382,7 @@
     .modal-backdrop.open{opacity:1;pointer-events:all}
     .modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.18);transform:translateY(12px);transition:transform .2s}
     .modal-backdrop.open .modal{transform:translateY(0)}
-    .modal h3{font-family:'Playfair Display',serif;font-weight:400;font-size:1.15rem;margin-bottom:10px;color:var(--ink)}
+    .modal h3{font-family:var(--font-display);font-weight:400;font-size:1.15rem;margin-bottom:10px;color:var(--ink)}
     .modal p{font-size:.85rem;color:var(--ink-light);line-height:1.55;margin-bottom:20px}
     .modal p strong{color:var(--ink)}
     .modal-btns{display:flex;gap:10px}
@@ -577,7 +619,7 @@
 
       <div class="settings-group">
         <div class="settings-group-title">Appearance</div>
-        <div class="setting-row">
+        <div class="setting-row prompt-window-row">
           <div class="setting-info">
             <strong>Theme</strong>
             <small>System matches your device's setting automatically.</small>
@@ -586,6 +628,7 @@
             <button id="th-light" onclick="setTheme('light')">Light</button>
             <button id="th-dark" onclick="setTheme('dark')">Dark</button>
             <button id="th-system" onclick="setTheme('system')">System</button>
+            <button id="th-punk" onclick="setTheme('punk')">Punk</button>
           </div>
         </div>
         <div class="setting-row" style="border-bottom:none">
@@ -681,7 +724,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b41</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b42</span></div>
 
     </div>
   </div>
@@ -788,9 +831,10 @@ let theme='system';
 // those same properties so the Stats doughnut matches too. The <head> also has
 // a tiny inline script that applies the saved theme before first paint, so
 // there's no flash of the wrong theme on load or sign-out.
+const EXPLICIT_THEMES=['light','dark','punk']; // themes that don't follow the OS — 'system' is the only one that does
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 function resolvedTheme(){
-  if(theme==='light'||theme==='dark') return theme;
+  if(EXPLICIT_THEMES.includes(theme)) return theme;
   return (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
 }
 function updateThemeColorMeta(){
@@ -805,10 +849,10 @@ function updateChartTheme(){
 }
 function applyTheme(t){
   console.log('[168-theme] applyTheme called with:',t,'| stack:',new Error().stack?.split('\n').slice(1,4).join(' <- '));
-  theme=(t==='light'||t==='dark')?t:'system';
+  theme=EXPLICIT_THEMES.includes(t)?t:'system';
   try{ localStorage.setItem('theme',theme); }catch(e){}
   const root=document.documentElement;
-  if(theme==='light'||theme==='dark') root.setAttribute('data-theme',theme);
+  if(EXPLICIT_THEMES.includes(theme)) root.setAttribute('data-theme',theme);
   else root.removeAttribute('data-theme');
   // Some Android WebView builds (which installed PWAs run through, unlike a normal
   // browser tab) update computed style for a :root custom-property change but don't
@@ -820,7 +864,7 @@ function applyTheme(t){
   updateThemeSegUI();
 }
 function updateThemeSegUI(){
-  ['light','dark','system'].forEach(t=>{
+  ['light','dark','punk','system'].forEach(t=>{
     const b=document.getElementById('th-'+t);
     if(b) b.classList.toggle('active',theme===t);
   });
@@ -846,7 +890,7 @@ async function setTheme(t){
 }
 (function initTheme(){
   let cached='system';
-  try{ const t=localStorage.getItem('theme'); if(t==='light'||t==='dark'||t==='system') cached=t; }catch(e){}
+  try{ const t=localStorage.getItem('theme'); if(t==='light'||t==='dark'||t==='punk'||t==='system') cached=t; }catch(e){}
   applyTheme(cached);
   try{
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(theme==='system'){ updateThemeColorMeta(); updateChartTheme(); } });
@@ -1066,7 +1110,7 @@ async function loadPrefs(){
       }
       else if(r.key==='theme'){
         console.log('[168-theme] loadPrefs saw server theme:',r.value,'| isThemeExplicit:',isThemeExplicit(),'| will apply:',!isThemeExplicit());
-        if(!isThemeExplicit() && ['light','dark','system'].includes(r.value)) applyTheme(r.value);
+        if(!isThemeExplicit() && ['light','dark','punk','system'].includes(r.value)) applyTheme(r.value);
       }
     });
   }
