@@ -54,6 +54,14 @@
       --muted:#f0ece3;--stripe:#ede8de;
       --border:#e0d9cc;--radius:14px;--shadow:0 2px 16px rgba(0,0,0,.07);
     }
+    /* An explicit "Light" choice must win even when the OS is dark. The vars are
+       already correctly excluded from the dark overrides below by :not([data-theme=
+       "light"]) — this rule exists only to strengthen color-scheme's opt-out.
+       Some WebView builds (which installed PWAs run through) apply their own
+       algorithmic darkening on top of a page's own (correctly light) colors
+       unless told "only light" — plain "light" isn't always a strong enough
+       signal to fully disable that. */
+    :root[data-theme="light"]{ color-scheme:only light; }
     /* Follow the OS setting only when the user hasn't explicitly forced a theme.
        Accent/danger are deliberately darker than they look "should" be: they're
        also used as solid button fills under white text, so they're tuned for
@@ -673,7 +681,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b40</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b41</span></div>
 
     </div>
   </div>
