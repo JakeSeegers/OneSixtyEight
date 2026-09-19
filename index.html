@@ -252,6 +252,13 @@
     .seg-toggle{display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
     .seg-toggle button{padding:6px 14px;font-size:.75rem;font-weight:500;font-family:'DM Sans',sans-serif;background:none;border:none;cursor:pointer;color:var(--ink-light);transition:all .15s}
     .seg-toggle button.active{background:var(--accent);color:#fff}
+    .prompt-window-row{flex-direction:column;align-items:stretch;gap:10px}
+    .prompt-window-fields{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .prompt-window-fields select{font-family:'DM Sans',sans-serif;font-size:.82rem;color:var(--ink);background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 8px}
+    .prompt-window-fields span{font-size:.78rem;color:var(--ink-light)}
+    .day-chips{display:flex;gap:6px;flex-wrap:wrap}
+    .day-chip{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:none;font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:500;color:var(--ink-light);cursor:pointer;transition:all .15s}
+    .day-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
     .seg-toggle button:not(:last-child){border-right:1.5px solid var(--border)}
     .danger-btn{background:none;border:1.5px solid #e0a09a;border-radius:10px;padding:9px 15px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;color:#b84040;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap}
     .danger-btn:hover{background:#fdf0f0;border-color:#b84040}
@@ -518,9 +525,27 @@
         <div class="setting-row">
           <div class="setting-info">
             <strong>Random reminders</strong>
-            <small>7 prompts per day, randomly spaced 8 am – 10 pm your local time<span id="tz-label"></span>. Delivered even when the app is closed.</small>
+            <small id="prompt-window-desc">7 prompts per day, randomly spaced 8 am – 10 pm your local time<span id="tz-label"></span>. Delivered even when the app is closed.</small>
           </div>
           <button class="pill-btn" id="s-notif-btn" onclick="toggleNotifications()">Enable</button>
+        </div>
+        <div class="setting-row prompt-window-row">
+          <div class="setting-info">
+            <strong>Active hours</strong>
+            <small>Prompts only fire inside this window, your local time.</small>
+          </div>
+          <div class="prompt-window-fields">
+            <select id="s-prompt-start" onchange="onPromptWindowChange('start')"></select>
+            <span>to</span>
+            <select id="s-prompt-end" onchange="onPromptWindowChange('end')"></select>
+          </div>
+        </div>
+        <div class="setting-row prompt-window-row">
+          <div class="setting-info">
+            <strong>Active days</strong>
+            <small>Pick which days of the week prompts are sent.</small>
+          </div>
+          <div class="day-chips" id="s-prompt-days"></div>
         </div>
         <div class="setting-row">
           <div class="setting-info">
@@ -666,6 +691,8 @@ let pieChart=null;
 let logCache=null;
 let customActs=[];
 let weekSize=168;
+let promptStart=8, promptEnd=22;
+let promptDays=new Set([0,1,2,3,4,5,6]);
 let calMode='this';
 let calWeekOffset=0;
 let allWeekStarts=[];
@@ -881,9 +908,88 @@ async function safeQuery(fn, label){
 async function loadPrefs(){
   const {data,error}=await safeQuery(()=>db.from('user_prefs').select('*').eq('user_id',currentUser.id),'prefs');
   if(error){ console.warn('[168] loadPrefs failed:', error.message); return; }
-  if(!data) return;
-  data.forEach(r=>{ if(r.key==='week_size') weekSize=parseInt(r.value)||168; });
+  promptStart=8; promptEnd=22; promptDays=new Set([0,1,2,3,4,5,6]);
+  if(data){
+    data.forEach(r=>{
+      if(r.key==='week_size') weekSize=parseInt(r.value)||168;
+      else if(r.key==='prompt_start'){ const v=parseInt(r.value); if(!isNaN(v)) promptStart=v; }
+      else if(r.key==='prompt_end'){ const v=parseInt(r.value); if(!isNaN(v)) promptEnd=v; }
+      else if(r.key==='prompt_days'){
+        const v=r.value.split(',').map(n=>parseInt(n)).filter(n=>!isNaN(n)&&n>=0&&n<=6);
+        if(v.length) promptDays=new Set(v);
+      }
+    });
+  }
   updateWeekSizeUI();
+  renderPromptWindowUI();
+}
+
+// ── Prompt window (active hours / active days) ──────────────────────────────
+function hourLabel(h){
+  const ampm=h<12?'AM':'PM';
+  let h12=h%12; if(h12===0) h12=12;
+  return `${h12}:00 ${ampm}`;
+}
+function populatePromptHourSelects(){
+  const s=document.getElementById('s-prompt-start'), e=document.getElementById('s-prompt-end');
+  if(!s||!e||s.options.length) return;
+  for(let h=0;h<24;h++){
+    s.appendChild(new Option(hourLabel(h),h));
+    e.appendChild(new Option(hourLabel(h),h));
+  }
+  const wrap=document.getElementById('s-prompt-days');
+  if(wrap && !wrap.children.length){
+    DAYS_SHORT.forEach((d,i)=>{
+      const b=document.createElement('button');
+      b.className='day-chip'; b.textContent=d[0]; b.title=d;
+      b.onclick=()=>toggleDay(i);
+      b.id='day-chip-'+i;
+      wrap.appendChild(b);
+    });
+  }
+}
+function renderPromptWindowUI(){
+  populatePromptHourSelects();
+  const s=document.getElementById('s-prompt-start'), e=document.getElementById('s-prompt-end');
+  if(s) s.value=promptStart;
+  if(e) e.value=promptEnd;
+  DAYS_SHORT.forEach((_,i)=>{
+    const chip=document.getElementById('day-chip-'+i);
+    if(chip) chip.classList.toggle('active',promptDays.has(i));
+  });
+  updatePromptWindowDesc();
+}
+function updatePromptWindowDesc(){
+  const el=document.getElementById('prompt-window-desc');
+  if(!el) return;
+  const dayCount=promptDays.size;
+  let dayText;
+  if(dayCount===7) dayText='every day';
+  else if(dayCount===0) dayText='no days selected';
+  else dayText='on '+[...promptDays].sort().map(i=>DAYS_SHORT[i]).join(', ');
+  el.innerHTML=`7 prompts per day, randomly spaced ${hourLabel(promptStart).toLowerCase()} – ${hourLabel(promptEnd).toLowerCase()}, ${dayText}, your local time<span id="tz-label"></span>. Delivered even when the app is closed.`;
+  setTzLabel();
+}
+async function onPromptWindowChange(which){
+  const s=document.getElementById('s-prompt-start'), e=document.getElementById('s-prompt-end');
+  let start=parseInt(s.value), end=parseInt(e.value);
+  if(end<=start){
+    if(which==='start') end=Math.min(23,start+1); else start=Math.max(0,end-1);
+    s.value=start; e.value=end;
+    showToast('Active hours must span at least one hour');
+  }
+  promptStart=start; promptEnd=end;
+  updatePromptWindowDesc();
+  await savePref('prompt_start',promptStart);
+  await savePref('prompt_end',promptEnd);
+}
+async function toggleDay(i){
+  if(promptDays.has(i)){
+    if(promptDays.size===1){ showToast('At least one day must stay selected'); return; }
+    promptDays.delete(i);
+  } else promptDays.add(i);
+  renderPromptWindowUI();
+  await savePref('prompt_days',[...promptDays].sort().join(','));
 }
 async function savePref(key,value){
   const {error}=await db.from('user_prefs').upsert(
@@ -893,7 +999,7 @@ async function savePref(key,value){
   if(error) console.warn('[168] savePref failed:', error.message);
 }
 // Save the device's IANA timezone so server-side scheduling uses the user's local
-// waking hours (8am–10pm). Server falls back to Eastern if it's missing/unknown.
+// active hours window. Server falls back to Eastern if it's missing/unknown.
 async function saveTimezone(){
   setTzLabel();
   try{
@@ -1170,7 +1276,7 @@ function showTab(tab){
   if(tab==='stats')   loadStats();
   if(tab==='summary') loadSummary();
   if(tab==='calendar') loadCalendar();
-  if(tab==='settings'){ renderCustomActList(); updateWeekSizeUI(); updateNotifBtn(); }
+  if(tab==='settings'){ renderCustomActList(); updateWeekSizeUI(); updateNotifBtn(); renderPromptWindowUI(); }
 }
 
 // ── Data cache ─────────────────────────────────────────────────────────────

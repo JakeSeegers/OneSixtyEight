@@ -64,7 +64,7 @@ All data is scoped to the signed-in user. There is no anonymous / shared data mo
 | **Stats** | Doughnut chart + percentage bars across all time |
 | **Summary** | Replica of the 168-hour Part 2 worksheet, filled with your data + Download .xlsx button |
 | **Calendar** | 168-cell grid with three sub-views: This Week (live), Past (browse any archived week), Average (stacked bands across all weeks) |
-| **Settings** | Account info + sign-out, notifications (enable + send a test), week size (168 / 336 hours), custom activities management, delete-all-data |
+| **Settings** | Account info + sign-out, notifications (enable + send a test + adjustable active hours/days), week size (168 / 336 hours), custom activities management, delete-all-data |
 
 ---
 
@@ -95,7 +95,9 @@ CREATE TABLE custom_activities (
   user_id    uuid        NOT NULL REFERENCES auth.users(id)
 );
 
--- Per-user key/value preferences (e.g. week_size = '168' | '336')
+-- Per-user key/value preferences (e.g. week_size = '168' | '336',
+-- tz = IANA zone, prompt_start / prompt_end = active-hours window (0-23),
+-- prompt_days = comma-separated days of week the prompts run, 0=Sun..6=Sat)
 CREATE TABLE user_prefs (
   key        text        NOT NULL,
   value      text        NOT NULL,
@@ -169,12 +171,14 @@ The ESM (Experience Sampling Method) scheduler avoids two failure modes:
 1. **Fixed-time alerts** — users adapt their behavior in anticipation
 2. **Purely random alerts** — can cluster (3 in one hour, none for 6 hours), disrupting daily life
 
-**Solution: stratified random sampling.** Waking hours (8 am–10 pm) are split into 7 equal two-hour blocks. One notification fires at a random moment within each block. This guarantees even distribution while preserving unpredictability.
+**Solution: stratified random sampling.** The user's active-hours window (8 am–10 pm by default, adjustable in Settings) is split into 7 equal blocks. One notification fires at a random moment within each block. This guarantees even distribution while preserving unpredictability.
 
 ```javascript
-// The 7 two-hour blocks
+// Default: waking hours split into 7 two-hour blocks
 const BLOCKS = [[8,10],[10,12],[12,14],[14,16],[16,18],[18,20],[20,22]];
 ```
+
+**Active hours and active days are user-configurable.** In Settings → Notifications, a user can narrow or widen the daily window (stored as `prompt_start` / `prompt_end`, hour-of-day 0–23, in `user_prefs`) and pick which days of the week prompts run (stored as `prompt_days`, a comma-separated list of `0`–`6` where `0` = Sunday). `gen_daily_prompts()` reads both prefs per user — falling back to 8 am–10 pm, every day, when unset — and skips generating a schedule entirely on a day that isn't selected.
 
 ### Web Push architecture (server-delivered)
 
@@ -193,7 +197,7 @@ Supabase Cron (pg_cron)
 
 | Job | Schedule | What it does |
 |---|---|---|
-| `gen-daily-prompts` | every 15 min | Calls `gen_daily_prompts()`, a `SECURITY DEFINER` plpgsql function. For each user who has at least one push subscription and no schedule yet for their local day, it generates 7 stratified-random `fire_at` timestamps — one per two-hour block across 8 am–10 pm — computed in **the user's own timezone** (the IANA `tz` stored in `user_prefs`, validated against `pg_timezone_names`, falling back to `America/New_York`). |
+| `gen-daily-prompts` | every 15 min | Calls `gen_daily_prompts()`, a `SECURITY DEFINER` plpgsql function. For each user who has at least one push subscription, no schedule yet for their local day, and today's local weekday in their `prompt_days` (default: every day), it generates 7 stratified-random `fire_at` timestamps — one per equal block spanning their `prompt_start`–`prompt_end` window (default 8 am–10 pm) — computed in **the user's own timezone** (the IANA `tz` stored in `user_prefs`, validated against `pg_timezone_names`, falling back to `America/New_York`). |
 | `send-due-prompts` | every minute | Calls the `send-push` Edge Function with the cron secret. The function finds all `prompt_schedule` rows where `fire_at <= now()` and `sent_at IS NULL`, pushes to each of that user's subscribed devices, then sets `sent_at`. HTTP 404/410 responses from the push service cause the dead subscription to be auto-pruned from `push_subscriptions`. |
 
 > **Timezone:** Each device reports its IANA timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) on sign-in, saved to `user_prefs.tz`. Prompts fire during the user's *local* 8 am–10 pm. DST is handled automatically by Postgres `AT TIME ZONE`. Unknown/missing zones fall back to Eastern. The zone is auto-detected (re-detected on each sign-in), not a manual setting.
