@@ -81,7 +81,7 @@
       --border:#3a362f;--shadow:0 2px 16px rgba(0,0,0,.4);
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column;transition:background-color .15s,color .15s}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
 
     /* ── auth screens ── */
     #auth-screen{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -673,7 +673,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b39</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b40</span></div>
 
     </div>
   </div>
@@ -802,6 +802,11 @@ function applyTheme(t){
   const root=document.documentElement;
   if(theme==='light'||theme==='dark') root.setAttribute('data-theme',theme);
   else root.removeAttribute('data-theme');
+  // Some Android WebView builds (which installed PWAs run through, unlike a normal
+  // browser tab) update computed style for a :root custom-property change but don't
+  // actually repaint the screen until something else forces a reflow. Force one.
+  void root.offsetHeight;
+  requestAnimationFrame(()=>{ void document.body.offsetHeight; });
   updateThemeColorMeta();
   updateChartTheme();
   updateThemeSegUI();
