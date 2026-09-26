@@ -461,7 +461,7 @@
 <body>
 
 <!-- ══ AUTH SCREEN ══ -->
-<div id="auth-screen">
+<div id="auth-screen" style="display:none">
   <div class="auth-card">
     <div class="auth-logo">168 <span>Hours</span></div>
     <p class="auth-tagline">Track how you actually spend your time,<br>one random prompt at a time.</p>
@@ -721,7 +721,7 @@
         </div>
       </div>
 
-      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-19-b43</span></div>
+      <div style="text-align:center;font-size:.7rem;color:var(--ink-light);padding:6px 0 4px">Build <span id="build-stamp">2026-09-26-b44</span></div>
 
     </div>
   </div>
@@ -819,7 +819,18 @@ let theme='system';
 
 (function initAuthUI(){
   document.getElementById('forgot-pw-link').style.display='block'; // shown on signin tab
-  document.getElementById('auth-screen').style.display='flex';
+  // Auth screen starts hidden (see its inline style) so an already-signed-in visitor
+  // never sees a flash of the login form while onAuthStateChange resolves the
+  // persisted session below — it reveals auth-screen itself once it knows there's no
+  // session, and enterApp() reveals #app once it knows there is one. Fall back to
+  // showing the login form if neither ever resolves (e.g. Supabase failed to load),
+  // so the app can't get stuck on a blank screen.
+  setTimeout(()=>{
+    const noneShown = getComputedStyle(document.getElementById('auth-screen')).display==='none'
+      && getComputedStyle(document.getElementById('verify-screen')).display==='none'
+      && !document.getElementById('app').classList.contains('visible');
+    if(noneShown) document.getElementById('auth-screen').style.display='flex';
+  }, 4000);
 })();
 
 // ── Theme (light / dark / system) ───────────────────────────────────────────
